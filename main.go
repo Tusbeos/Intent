@@ -17,7 +17,7 @@ func arrayExample() {
 // 2. Ví dụ về String
 func stringExample() {
 	str := "Hello, Golang!"
-	fmt.Println("Chuoo ban dau:", str)
+	fmt.Println("Chuoi ban dau:", str)
 	fmt.Println("Do dai cua chuoi:", len(str))
 	fmt.Println("Caplock:", strings.ToUpper(str))
 }
@@ -61,7 +61,7 @@ func main() {
 
 	fmt.Println("\n--- Function Example ---")
 	result := add(5, 7)
-	fmt.Println("Sum:", result)
+	fmt.Println("Tong:", result)
 
 	fmt.Println("\n--- Method Example ---")
 	rect := Rectangle{width: 5, height: 10}
