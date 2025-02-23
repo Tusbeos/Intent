@@ -11,16 +11,15 @@ func arrayExample() {
 	fmt.Println("Array:", arr)
 
 	arr[2] = 10
-	fmt.Println("Modified Array:", arr)
+	fmt.Println("Array sau khi thay doi:", arr)
 }
 
 // 2. Ví dụ về String
 func stringExample() {
 	str := "Hello, Golang!"
-	fmt.Println("Original String:", str)
-	fmt.Println("Length of string:", len(str))
-	fmt.Println("Uppercase:", strings.ToUpper(str))
-	fmt.Println("Contains 'Go':", strings.Contains(str, "Go"))
+	fmt.Println("Chuoo ban dau:", str)
+	fmt.Println("Do dai cua chuoi:", len(str))
+	fmt.Println("Caplock:", strings.ToUpper(str))
 }
 
 // 3. Ví dụ về Slices
@@ -29,10 +28,10 @@ func sliceExample() {
 	fmt.Println("Slice:", slice)
 
 	slice = append(slice, 6, 7)
-	fmt.Println("Appended Slice:", slice)
+	fmt.Println("Them Slice:", slice)
 
 	subSlice := slice[1:4]
-	fmt.Println("SubSlice (1:4):", subSlice)
+	fmt.Println("Lay phan tu (1:4):", subSlice)
 }
 
 // 4. Ví dụ về Functions
@@ -66,5 +65,5 @@ func main() {
 
 	fmt.Println("\n--- Method Example ---")
 	rect := Rectangle{width: 5, height: 10}
-	fmt.Println("Rectangle Area:", rect.Area())
+	fmt.Println("Dien tich hinh chu nhat:", rect.Area())
 }
