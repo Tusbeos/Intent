@@ -1,69 +1,148 @@
 package main
 
 import (
-	"fmt"
+	"database/sql"
+	"encoding/json"
+	"log"
+	"net/http"
+	"strconv"
 	"strings"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
-// 1. Ví dụ về Array
-func arrayExample() {
-	var arr [5]int = [5]int{1, 2, 3, 4, 5}
-	fmt.Println("Array:", arr)
-
-	arr[2] = 10
-	fmt.Println("Array sau khi thay doi:", arr)
+// Kết nối Database
+func connectDB() (*sql.DB, error) {
+	db, err := sql.Open("mysql", "Main:123456@tcp(127.0.0.1:3306)/golangdb")
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+	log.Println(" Ket noi MySQL thanh cong!")
+	return db, nil
 }
-
-// 2. Ví dụ về String
-func stringExample() {
-	str := "Hello, Golang!"
-	fmt.Println("Chuoi ban dau:", str)
-	fmt.Println("Do dai cua chuoi:", len(str))
-	fmt.Println("Caplock:", strings.ToUpper(str))
-}
-
-// 3. Ví dụ về Slices
-func sliceExample() {
-	slice := []int{1, 2, 3, 4, 5}
-	fmt.Println("Slice:", slice)
-
-	slice = append(slice, 6, 7)
-	fmt.Println("Them Slice:", slice)
-
-	subSlice := slice[1:4]
-	fmt.Println("Lay phan tu (1:4):", subSlice)
-}
-
-// 4. Ví dụ về Functions
-func add(a int, b int) int {
-	return a + b
-}
-
-// 5. Ví dụ về Methods trên Struct
-type Rectangle struct {
-	width, height float64
-}
-
-func (r Rectangle) Area() float64 {
-	return r.width * r.height
-}
-
-// Hàm main duy nhất gọi tất cả các ví dụ trên
 func main() {
-	fmt.Println("\n--- Array Example ---")
-	arrayExample()
+	db, err := connectDB()
+	if err != nil {
+		log.Fatalf(" Loi ket noi database: %v", err)
+	}
+	defer db.Close()
 
-	fmt.Println("\n--- String Example ---")
-	stringExample()
+	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case "POST":
+			addUser(w, r, db)
+		case "PUT":
+			updateUser(w, r, db)
+		case "GET":
+			getUsers(w, db)
+		default:
+			http.Error(w, "Phuong thuc khong ho tro", http.StatusMethodNotAllowed)
+		}
+	})
 
-	fmt.Println("\n--- Slice Example ---")
-	sliceExample()
+	http.HandleFunc("/users/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/users/")
+		if id == "" {
+			http.Error(w, "Thieu ID", http.StatusBadRequest)
+			return
+		}
+		switch r.Method {
+		case "GET":
+			getUserByID(w, id, db)
+		case "DELETE":
+			deleteUser(w, id, db)
+		default:
+			http.Error(w, "Phuong thuc khong ho tro", http.StatusMethodNotAllowed)
+		}
+	})
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
 
-	fmt.Println("\n--- Function Example ---")
-	result := add(5, 7)
-	fmt.Println("Tong:", result)
+// API: Thêm User
+func addUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	var user struct{ Name, Password string }
+	if json.NewDecoder(r.Body).Decode(&user) != nil {
+		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
+		return
+	}
+	_, err := db.Exec("INSERT INTO users (name, password) VALUES (?, ?)", user.Name, user.Password)
+	if err != nil {
+		http.Error(w, "Loi khi them user", http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(w, "Them user thanh cong!")
+}
 
-	fmt.Println("\n--- Method Example ---")
-	rect := Rectangle{width: 5, height: 10}
-	fmt.Println("Dien tich hinh chu nhat:", rect.Area())
+// API: Cập nhật User
+func updateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	var user struct{ Name, Password string }
+	if json.NewDecoder(r.Body).Decode(&user) != nil {
+		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
+		return
+	}
+	_, err := db.Exec("UPDATE users SET password = ? WHERE name = ?", user.Password, user.Name)
+	if err != nil {
+		http.Error(w, "Loi khi cap nhat user", http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(w, "Cap nhat user thanh cong!")
+}
+
+// API: Xóa User
+func deleteUser(w http.ResponseWriter, id string, db *sql.DB) {
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, "ID khong hop le", http.StatusBadRequest)
+		return
+	}
+	_, err = db.Exec("DELETE FROM users WHERE id = ?", idInt)
+	if err != nil {
+		http.Error(w, "Loi khi xoa user", http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(w, "Xoa user thanh cong!")
+}
+
+// API: Lấy danh sách Users
+func getUsers(w http.ResponseWriter, db *sql.DB) {
+	rows, err := db.Query("SELECT id, name, password FROM users")
+	if err != nil {
+		http.Error(w, "Loi khi lay danh sach users", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var users []map[string]string
+	for rows.Next() {
+		var id, name, password string
+		rows.Scan(&id, &name, &password)
+		users = append(users, map[string]string{"id": id, "name": name, "password": password})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
+}
+
+// API: Lấy User theo ID
+func getUserByID(w http.ResponseWriter, id string, db *sql.DB) {
+	var user struct{ Name, Password string }
+	err := db.QueryRow("SELECT name, password FROM users WHERE id = ?", id).Scan(&user.Name, &user.Password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "User khong ton tai", http.StatusNotFound)
+		} else {
+			http.Error(w, "Loi khi lay user", http.StatusInternalServerError)
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// Trả về JSON response
+func jsonResponse(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": message})
 }
