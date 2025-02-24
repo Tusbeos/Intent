@@ -31,7 +31,6 @@ func main() {
 	}
 	defer db.Close()
 
-	// Đăng ký từng API với HandleFunc riêng biệt
 	http.HandleFunc("/users/create", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			handleCreateUser(w, r, db)
@@ -68,7 +67,7 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-// API: Tạo User (POST /users/create)
+// API: Tạo User
 func handleCreateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user struct{ Name, Password string }
 	if json.NewDecoder(r.Body).Decode(&user) != nil {
@@ -84,7 +83,7 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	jsonResponse(w, "Them user thanh cong!")
 }
 
-// API: Cập nhật User (PUT /users/update)
+// API: Cập nhật User
 func handleUpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user struct{ ID, Name, Password string }
 	if json.NewDecoder(r.Body).Decode(&user) != nil {
@@ -106,7 +105,7 @@ func handleUpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	jsonResponse(w, "Cap nhat user thanh cong!")
 }
 
-// API: Lấy User theo ID (GET /users/get/{id})
+// API: Lấy User theo ID
 func handleGetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 	var user struct{ Name, Password string }
 	err := db.QueryRow("SELECT name, password FROM users WHERE id = ?", id).Scan(&user.Name, &user.Password)
@@ -122,7 +121,7 @@ func handleGetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// API: Xóa User theo ID (DELETE /users/delete/{id})
+// API: Xóa User theo ID
 func handleDeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
@@ -145,7 +144,6 @@ func handleDeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
 	jsonResponse(w, "Xoa user thanh cong")
 }
 
-// Hàm trả về JSON response
 func jsonResponse(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": message})
