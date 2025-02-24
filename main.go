@@ -30,45 +30,28 @@ func main() {
 		log.Fatalf(" Loi ket noi database: %v", err)
 	}
 	defer db.Close()
-
-	http.HandleFunc("/users/create", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			handleCreateUser(w, r, db)
-		} else {
-			http.Error(w, "Phuong thuc khong ho tro", http.StatusMethodNotAllowed)
-		}
+	http.HandleFunc("/POST/users", func(w http.ResponseWriter, r *http.Request) {
+		AddUser(w, r, db)
 	})
-
-	http.HandleFunc("/users/update", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "PUT" {
-			handleUpdateUser(w, r, db)
-		} else {
-			http.Error(w, "Phuong thuc khong ho tro", http.StatusMethodNotAllowed)
-		}
+	http.HandleFunc("/PUT/users", func(w http.ResponseWriter, r *http.Request) {
+		UpdateUser(w, r, db)
 	})
-
-	http.HandleFunc("/users/get/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/users/get/")
-		if id == "" {
-			http.Error(w, "Thieu ID", http.StatusBadRequest)
-			return
-		}
-		handleGetUserByID(w, id, db)
+	http.HandleFunc("/DELETE/users/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/DELETE/users/")
+		DeleteUser(w, id, db)
 	})
-
-	http.HandleFunc("/users/delete/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/users/delete/")
-		if id == "" {
-			http.Error(w, "Thieu ID", http.StatusBadRequest)
-			return
-		}
-		handleDeleteUser(w, id, db)
+	http.HandleFunc("/GET/users", func(w http.ResponseWriter, r *http.Request) {
+		GetAllUsers(w, db)
+	})
+	http.HandleFunc("/GET/users/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/GET/users/")
+		GetUserByID(w, id, db)
 	})
 	http.ListenAndServe(":8080", nil)
 }
 
 // API: Tạo User
-func handleCreateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func AddUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user struct{ Name, Password string }
 	if json.NewDecoder(r.Body).Decode(&user) != nil {
 		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
@@ -84,19 +67,17 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 // API: Cập nhật User
-func handleUpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func UpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user struct{ ID, Name, Password string }
 	if json.NewDecoder(r.Body).Decode(&user) != nil {
 		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
 		return
 	}
-
 	idInt, err := strconv.Atoi(user.ID)
 	if err != nil {
 		http.Error(w, "ID khong hop le", http.StatusBadRequest)
 		return
 	}
-
 	_, err = db.Exec("UPDATE users SET name = ?, password = ? WHERE id = ?", user.Name, user.Password, idInt)
 	if err != nil {
 		http.Error(w, "Loi khi cap nhat user", http.StatusInternalServerError)
@@ -105,8 +86,32 @@ func handleUpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	jsonResponse(w, "Cap nhat user thanh cong!")
 }
 
+// API: Lay danh sach User
+func GetAllUsers(w http.ResponseWriter, db *sql.DB) {
+	rows, err := db.Query("SELECT id, name, password FROM users")
+	if err != nil {
+		http.Error(w, "Loi khi lay danh sach users", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var users []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name, password string
+		if err := rows.Scan(&id, &name, &password); err != nil {
+			http.Error(w, "Loi khi doc du lieu", http.StatusInternalServerError)
+			return
+		}
+		users = append(users, map[string]interface{}{"id": id, "name": name, "password": password})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
+}
+
 // API: Lấy User theo ID
-func handleGetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
+func GetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 	var user struct{ Name, Password string }
 	err := db.QueryRow("SELECT name, password FROM users WHERE id = ?", id).Scan(&user.Name, &user.Password)
 	if err != nil {
@@ -122,7 +127,7 @@ func handleGetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 }
 
 // API: Xóa User theo ID
-func handleDeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
+func DeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		http.Error(w, "ID khong hop le", http.StatusBadRequest)
