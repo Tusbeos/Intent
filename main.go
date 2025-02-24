@@ -36,8 +36,6 @@ func main() {
 			addUser(w, r, db)
 		case "PUT":
 			updateUser(w, r, db)
-		case "GET":
-			getUsers(w, db)
 		default:
 			http.Error(w, "Phuong thuc khong ho tro", http.StatusMethodNotAllowed)
 		}
@@ -104,25 +102,6 @@ func deleteUser(w http.ResponseWriter, id string, db *sql.DB) {
 		return
 	}
 	jsonResponse(w, "Xoa user thanh cong!")
-}
-
-// API: Lấy danh sách Users
-func getUsers(w http.ResponseWriter, db *sql.DB) {
-	rows, err := db.Query("SELECT id, name, password FROM users")
-	if err != nil {
-		http.Error(w, "Loi khi lay danh sach users", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var users []map[string]string
-	for rows.Next() {
-		var id, name, password string
-		rows.Scan(&id, &name, &password)
-		users = append(users, map[string]string{"id": id, "name": name, "password": password})
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
 }
 
 // API: Lấy User theo ID

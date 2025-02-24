@@ -49,7 +49,7 @@ func (r Rectangle) Area() float64 {
 }
 
 // Hàm main duy nhất gọi tất cả các ví dụ trên
-func main() {
+func Check() {
 	fmt.Println("\n--- Array Example ---")
 	arrayExample()
 
