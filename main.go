@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -30,21 +29,23 @@ func main() {
 		log.Fatalf(" Loi ket noi database: %v", err)
 	}
 	defer db.Close()
-	http.HandleFunc("/POST/users", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("POST /users", func(w http.ResponseWriter, r *http.Request) {
 		AddUser(w, r, db)
+		log.Println("Them User")
 	})
-	http.HandleFunc("/PUT/users", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("PUT /users", func(w http.ResponseWriter, r *http.Request) {
 		UpdateUser(w, r, db)
+		log.Println("Sua User")
 	})
-	http.HandleFunc("/DELETE/users/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/DELETE/users/")
+	http.HandleFunc("DELETE /users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
 		DeleteUser(w, id, db)
 	})
-	http.HandleFunc("/GET/users", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /users", func(w http.ResponseWriter, r *http.Request) {
 		GetAllUsers(w, db)
 	})
-	http.HandleFunc("/GET/users/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/GET/users/")
+	http.HandleFunc("GET /users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
 		GetUserByID(w, id, db)
 	})
 	http.ListenAndServe(":8080", nil)
