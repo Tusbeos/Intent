@@ -10,7 +10,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Kết nối Database
+// Connect to Database
 func connectDB() (*sql.DB, error) {
 	db, err := sql.Open("mysql", "Main:123456@tcp(127.0.0.1:3306)/golangdb")
 	if err != nil {
@@ -19,23 +19,21 @@ func connectDB() (*sql.DB, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-	log.Println(" Ket noi MySQL thanh cong!")
+	log.Println(" Successfully connected to MySQL!")
 	return db, nil
 }
 
 func main() {
 	db, err := connectDB()
 	if err != nil {
-		log.Fatalf(" Loi ket noi database: %v", err)
+		log.Fatalf(" Database connection error: %v", err)
 	}
 	defer db.Close()
 	http.HandleFunc("POST /users", func(w http.ResponseWriter, r *http.Request) {
 		AddUser(w, r, db)
-		log.Println("Them User")
 	})
 	http.HandleFunc("PUT /users", func(w http.ResponseWriter, r *http.Request) {
 		UpdateUser(w, r, db)
-		log.Println("Sua User")
 	})
 	http.HandleFunc("DELETE /users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -51,47 +49,47 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-// API: Tạo User
+// API: Create User
 func AddUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user struct{ Name, Password string }
 	if json.NewDecoder(r.Body).Decode(&user) != nil {
-		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
+		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 
 	_, err := db.Exec("INSERT INTO users (name, password) VALUES (?, ?)", user.Name, user.Password)
 	if err != nil {
-		http.Error(w, "Loi khi them user", http.StatusInternalServerError)
+		http.Error(w, "Error adding user", http.StatusInternalServerError)
 		return
 	}
-	jsonResponse(w, "Them user thanh cong!")
+	jsonResponse(w, "User added successfully!")
 }
 
-// API: Cập nhật User
+// API: Update User
 func UpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user struct{ ID, Name, Password string }
 	if json.NewDecoder(r.Body).Decode(&user) != nil {
-		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
+		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 	idInt, err := strconv.Atoi(user.ID)
 	if err != nil {
-		http.Error(w, "ID khong hop le", http.StatusBadRequest)
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 	_, err = db.Exec("UPDATE users SET name = ?, password = ? WHERE id = ?", user.Name, user.Password, idInt)
 	if err != nil {
-		http.Error(w, "Loi khi cap nhat user", http.StatusInternalServerError)
+		http.Error(w, "Error updating user", http.StatusInternalServerError)
 		return
 	}
-	jsonResponse(w, "Cap nhat user thanh cong!")
+	jsonResponse(w, "User updated successfully!")
 }
 
-// API: Lay danh sach User
+// API: Get All Users
 func GetAllUsers(w http.ResponseWriter, db *sql.DB) {
 	rows, err := db.Query("SELECT id, name, password FROM users")
 	if err != nil {
-		http.Error(w, "Loi khi lay danh sach users", http.StatusInternalServerError)
+		http.Error(w, "Error retrieving users", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -101,7 +99,7 @@ func GetAllUsers(w http.ResponseWriter, db *sql.DB) {
 		var id int
 		var name, password string
 		if err := rows.Scan(&id, &name, &password); err != nil {
-			http.Error(w, "Loi khi doc du lieu", http.StatusInternalServerError)
+			http.Error(w, "Error reading data", http.StatusInternalServerError)
 			return
 		}
 		users = append(users, map[string]interface{}{"id": id, "name": name, "password": password})
@@ -111,15 +109,15 @@ func GetAllUsers(w http.ResponseWriter, db *sql.DB) {
 	json.NewEncoder(w).Encode(users)
 }
 
-// API: Lấy User theo ID
+// API: Get User by ID
 func GetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 	var user struct{ Name, Password string }
 	err := db.QueryRow("SELECT name, password FROM users WHERE id = ?", id).Scan(&user.Name, &user.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "User khong ton tai", http.StatusNotFound)
+			http.Error(w, "User not found", http.StatusNotFound)
 		} else {
-			http.Error(w, "Loi khi lay user", http.StatusInternalServerError)
+			http.Error(w, "Error retrieving user", http.StatusInternalServerError)
 		}
 		return
 	}
@@ -127,27 +125,27 @@ func GetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// API: Xóa User theo ID
+// API: Delete User by ID
 func DeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
-		http.Error(w, "ID khong hop le", http.StatusBadRequest)
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
 	result, err := db.Exec("DELETE FROM users WHERE id = ?", idInt)
 	if err != nil {
-		http.Error(w, "Lỗi khi xóa user", http.StatusInternalServerError)
+		http.Error(w, "Error deleting user", http.StatusInternalServerError)
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		http.Error(w, "User khong ton tai", http.StatusNotFound)
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	jsonResponse(w, "Xoa user thanh cong")
+	jsonResponse(w, "User deleted successfully")
 }
 
 func jsonResponse(w http.ResponseWriter, message string) {
