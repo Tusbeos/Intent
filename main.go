@@ -1,12 +1,12 @@
 package main
 
 import (
+	models "Intent/models"
 	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -20,136 +20,187 @@ func connectDB() (*sql.DB, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-	log.Println(" Ket noi MySQL thanh cong!")
+	log.Println("Successfully connected to MySQL!")
 	return db, nil
 }
 
 func main() {
 	db, err := connectDB()
 	if err != nil {
-		log.Fatalf(" Loi ket noi database: %v", err)
+		log.Fatalf("Database connection error: %v", err)
 	}
 	defer db.Close()
-	http.HandleFunc("/POST/users", func(w http.ResponseWriter, r *http.Request) {
+
+	http.HandleFunc("POST /users", func(w http.ResponseWriter, r *http.Request) {
 		AddUser(w, r, db)
 	})
-	http.HandleFunc("/PUT/users", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("PUT /users", func(w http.ResponseWriter, r *http.Request) {
 		UpdateUser(w, r, db)
 	})
-	http.HandleFunc("/DELETE/users/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/DELETE/users/")
+	http.HandleFunc("DELETE /users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
 		DeleteUser(w, id, db)
 	})
-	http.HandleFunc("/GET/users", func(w http.ResponseWriter, r *http.Request) {
-		GetAllUsers(w, db)
+	http.HandleFunc("GET /users/", func(w http.ResponseWriter, r *http.Request) {
+		GetListUsers(w, r, db)
 	})
-	http.HandleFunc("/GET/users/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/GET/users/")
+	http.HandleFunc("GET /users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
 		GetUserByID(w, id, db)
 	})
 	http.ListenAndServe(":8080", nil)
 }
 
-// API: Tạo User
+// API: Thêm người dùng
 func AddUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	var user struct{ Name, Password string }
-	if json.NewDecoder(r.Body).Decode(&user) != nil {
-		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
+	var user models.Users
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		jsonResponse(w, 400, "Invalid data", nil)
 		return
 	}
 
 	_, err := db.Exec("INSERT INTO users (name, password) VALUES (?, ?)", user.Name, user.Password)
 	if err != nil {
-		http.Error(w, "Loi khi them user", http.StatusInternalServerError)
+		jsonResponse(w, 500, "Error adding user", nil)
 		return
 	}
-	jsonResponse(w, "Them user thanh cong!")
+	jsonResponse(w, 0, "User added successfully!", nil)
 }
 
-// API: Cập nhật User
+// API: Cập nhật người dùng
 func UpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	var user struct{ ID, Name, Password string }
-	if json.NewDecoder(r.Body).Decode(&user) != nil {
-		http.Error(w, "Du lieu khong hop le", http.StatusBadRequest)
-		return
-	}
-	idInt, err := strconv.Atoi(user.ID)
-	if err != nil {
-		http.Error(w, "ID khong hop le", http.StatusBadRequest)
-		return
-	}
-	_, err = db.Exec("UPDATE users SET name = ?, password = ? WHERE id = ?", user.Name, user.Password, idInt)
-	if err != nil {
-		http.Error(w, "Loi khi cap nhat user", http.StatusInternalServerError)
-		return
-	}
-	jsonResponse(w, "Cap nhat user thanh cong!")
-}
-
-// API: Lay danh sach User
-func GetAllUsers(w http.ResponseWriter, db *sql.DB) {
-	rows, err := db.Query("SELECT id, name, password FROM users")
-	if err != nil {
-		http.Error(w, "Loi khi lay danh sach users", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var users []map[string]interface{}
-	for rows.Next() {
-		var id int
-		var name, password string
-		if err := rows.Scan(&id, &name, &password); err != nil {
-			http.Error(w, "Loi khi doc du lieu", http.StatusInternalServerError)
-			return
-		}
-		users = append(users, map[string]interface{}{"id": id, "name": name, "password": password})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
-}
-
-// API: Lấy User theo ID
-func GetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
-	var user struct{ Name, Password string }
-	err := db.QueryRow("SELECT name, password FROM users WHERE id = ?", id).Scan(&user.Name, &user.Password)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "User khong ton tai", http.StatusNotFound)
-		} else {
-			http.Error(w, "Loi khi lay user", http.StatusInternalServerError)
-		}
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
-}
-
-// API: Xóa User theo ID
-func DeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
-	idInt, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, "ID khong hop le", http.StatusBadRequest)
+	var user models.Users
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		jsonResponse(w, 400, "Invalid data", nil)
 		return
 	}
 
-	result, err := db.Exec("DELETE FROM users WHERE id = ?", idInt)
+	result, err := db.Exec("UPDATE users SET name = ?, password = ? WHERE id = ?", user.Name, user.Password, user.ID)
 	if err != nil {
-		http.Error(w, "Lỗi khi xóa user", http.StatusInternalServerError)
+		jsonResponse(w, 500, "Error updating user", nil)
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		http.Error(w, "User khong ton tai", http.StatusNotFound)
+		jsonResponse(w, 404, "User not found", nil)
 		return
 	}
 
-	jsonResponse(w, "Xoa user thanh cong")
+	jsonResponse(w, 0, "User updated successfully!", nil)
 }
 
-func jsonResponse(w http.ResponseWriter, message string) {
+// API: Lấy danh sách người dùng
+func GetListUsers(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	// Lấy giá trị page và limit
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	//Tinh total
+	var total int
+	err := db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
+	if err != nil {
+		jsonResponseWithMeta(w, 500, "Error counting users", nil, models.Meta{})
+		return
+	}
+
+	// lay danh sach phan trang
+	offset := (page - 1) * limit
+	rows, err := db.Query("SELECT id, name, password FROM users LIMIT ? OFFSET ?", limit, offset)
+	if err != nil {
+		jsonResponseWithMeta(w, 500, "Error retrieving user list", nil, models.Meta{})
+		return
+	}
+	defer rows.Close()
+
+	// Duyệt qua kết quả và lưu vào danh sách user
+	var users []models.Users
+	for rows.Next() {
+		var user models.Users
+		if err := rows.Scan(&user.ID, &user.Name, &user.Password); err != nil {
+			jsonResponseWithMeta(w, 500, "Error reading data", nil, models.Meta{})
+			return
+		}
+		users = append(users, user)
+	}
+	// Tạo object meta
+	meta := models.Meta{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+	}
+	// Trả về JSON response
+	jsonResponseWithMeta(w, 0, "User list retrieved successfully", users, meta)
+}
+
+// Hàm trả về JSON response với thứ tự:
+func jsonResponseWithMeta(w http.ResponseWriter, errorCode int, message string, data interface{}, meta models.Meta) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": message})
+	response := struct {
+		ErrorCode int         `json:"error_code"`
+		Message   string      `json:"message"`
+		Data      interface{} `json:"data"`
+		Meta      models.Meta `json:"meta"`
+	}{
+		ErrorCode: errorCode,
+		Message:   message,
+		Data:      data,
+		Meta:      meta,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// API: Lấy thông tin người dùng theo ID
+func GetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
+	var user models.Users
+	err := db.QueryRow("SELECT id, name, password FROM users WHERE id = ?", id).Scan(&user.ID, &user.Name, &user.Password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			jsonResponse(w, 404, "User not found", nil)
+		} else {
+			jsonResponse(w, 500, "Error retrieving user", nil)
+		}
+		return
+	}
+	jsonResponse(w, 0, "User retrieved successfully", user)
+}
+
+// API: Xóa người dùng theo ID
+func DeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		jsonResponse(w, 400, "Invalid ID", nil)
+		return
+	}
+
+	result, err := db.Exec("DELETE FROM users WHERE id = ?", idInt)
+	if err != nil {
+		jsonResponse(w, 500, "Error deleting user", nil)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		jsonResponse(w, 404, "User not found", nil)
+		return
+	}
+
+	jsonResponse(w, 0, "User deleted successfully", nil)
+}
+
+// Hàm JSON response
+func jsonResponse(w http.ResponseWriter, errorCode int, message string, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	response := models.Response{
+		ErrorCode: errorCode,
+		Message:   message,
+		Data:      data,
+	}
+	json.NewEncoder(w).Encode(response)
 }
