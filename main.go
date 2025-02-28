@@ -11,7 +11,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Kết nối Database
+// Ket noi Database
 func connectDB() (*sql.DB, error) {
 	db, err := sql.Open("mysql", "Main:123456@tcp(127.0.0.1:3306)/golangdb")
 	if err != nil {
@@ -51,7 +51,7 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-// API: Thêm người dùng
+// API: Them nguoi dung
 func AddUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user models.Users
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -67,7 +67,7 @@ func AddUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	jsonResponse(w, 0, "User added successfully!", nil)
 }
 
-// API: Cập nhật người dùng
+// API: Cap nhat nguoi dung
 func UpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var user models.Users
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -90,9 +90,9 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	jsonResponse(w, 0, "User updated successfully!", nil)
 }
 
-// API: Lấy danh sách người dùng
+// API: Lay danh sach nguoi dung
 func GetListUsers(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	// Lấy giá trị page và limit
+	// Lay gia tri page và limit
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if page < 1 {
@@ -105,58 +105,52 @@ func GetListUsers(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var total int
 	err := db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
 	if err != nil {
-		jsonResponseWithMeta(w, 500, "Error counting users", nil, models.Meta{})
+		jsonResponseMeta(w, 500, "Error counting users", nil, models.Meta{})
 		return
 	}
 
-	// lay danh sach phan trang
+	// Lay danh sach phan trang
 	offset := (page - 1) * limit
 	rows, err := db.Query("SELECT id, name, password FROM users LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
-		jsonResponseWithMeta(w, 500, "Error retrieving user list", nil, models.Meta{})
+		jsonResponseMeta(w, 500, "Error retrieving user list", nil, models.Meta{})
 		return
 	}
 	defer rows.Close()
 
-	// Duyệt qua kết quả và lưu vào danh sách user
+	// Duyet qua ket qua và luu vao danh sach user
 	var users []models.Users
 	for rows.Next() {
 		var user models.Users
 		if err := rows.Scan(&user.ID, &user.Name, &user.Password); err != nil {
-			jsonResponseWithMeta(w, 500, "Error reading data", nil, models.Meta{})
+			jsonResponseMeta(w, 500, "Error reading data", nil, models.Meta{})
 			return
 		}
 		users = append(users, user)
 	}
-	// Tạo object meta
+	// Tao object meta
 	meta := models.Meta{
 		Page:  page,
 		Limit: limit,
 		Total: total,
 	}
-	// Trả về JSON response
-	jsonResponseWithMeta(w, 0, "User list retrieved successfully", users, meta)
+	// Tra ve JSON response
+	jsonResponseMeta(w, 0, "User list retrieved successfully", users, meta)
 }
 
-// Hàm trả về JSON response với thứ tự:
-func jsonResponseWithMeta(w http.ResponseWriter, errorCode int, message string, data interface{}, meta models.Meta) {
+// Hàm tra ve JSON response
+func jsonResponseMeta(w http.ResponseWriter, errorCode int, message string, data interface{}, meta models.Meta) {
 	w.Header().Set("Content-Type", "application/json")
-	response := struct {
-		ErrorCode int         `json:"error_code"`
-		Message   string      `json:"message"`
-		Data      interface{} `json:"data"`
-		Meta      models.Meta `json:"meta"`
-	}{
+	response := models.ResponseMeta{
 		ErrorCode: errorCode,
 		Message:   message,
 		Data:      data,
 		Meta:      meta,
 	}
-
 	json.NewEncoder(w).Encode(response)
 }
 
-// API: Lấy thông tin người dùng theo ID
+// API: Lay thong tin nguoi dung theo ID
 func GetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 	var user models.Users
 	err := db.QueryRow("SELECT id, name, password FROM users WHERE id = ?", id).Scan(&user.ID, &user.Name, &user.Password)
@@ -171,7 +165,7 @@ func GetUserByID(w http.ResponseWriter, id string, db *sql.DB) {
 	jsonResponse(w, 0, "User retrieved successfully", user)
 }
 
-// API: Xóa người dùng theo ID
+// API: Xoa nguoi dung theo ID
 func DeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
@@ -194,7 +188,7 @@ func DeleteUser(w http.ResponseWriter, id string, db *sql.DB) {
 	jsonResponse(w, 0, "User deleted successfully", nil)
 }
 
-// Hàm JSON response
+// Ham JSON response
 func jsonResponse(w http.ResponseWriter, errorCode int, message string, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	response := models.Response{
