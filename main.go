@@ -1,7 +1,7 @@
 package main
 
 import (
-	config "Intent/Config"
+	config "Intent/config"
 	models "Intent/models"
 	"encoding/json"
 	"fmt"
@@ -44,7 +44,7 @@ func main() {
 	http.HandleFunc("POST /users", func(w http.ResponseWriter, r *http.Request) {
 		AddUser(w, r, db)
 	})
-	http.HandleFunc("PUT /users", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("PUT /users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		UpdateUser(w, r, db)
 	})
 	http.HandleFunc("DELETE /users/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -67,10 +67,12 @@ func AddUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	var user models.Users
 
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		log.Printf("Error decoding JSON: %v", err)
 		jsonResponse(w, 400, "Invalid JSON data", nil)
 		return
 	}
 	if err := db.Create(&user).Error; err != nil {
+		log.Printf("Error adding user: %v", err)
 		jsonResponse(w, 500, "Error adding user", nil)
 		return
 	}
@@ -80,20 +82,41 @@ func AddUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 
 // API: Cập nhật người dùng
 func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
-	var user models.Users
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		jsonResponse(w, 400, "Invalid data", nil)
+	// Lấy ID từ URL
+	id := r.PathValue("id")
+	if id == "" {
+		log.Println("Missing user ID")
+		jsonResponse(w, 400, "Missing user ID", nil)
 		return
 	}
 
-	// Cập nhật dữ liệu
-	if err := db.Model(&models.Users{}).Where("id = ?", user.ID).Updates(user).Error; err != nil {
+	// Decode dữ liệu từ request body
+	var user models.Users
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		log.Printf("Error decoding JSON: %v", err)
+		jsonResponse(w, 400, "Invalid JSON data", nil)
+		return
+	}
+
+	// Kiểm tra user có tồn tại không
+	var existingUser models.Users
+	if err := db.First(&existingUser, id).Error; err != nil {
+		log.Printf("User not found: %v", err)
+		jsonResponse(w, 404, "User not found", nil)
+		return
+	}
+
+	// Cập nhật dữ liệu user
+	if err := db.Model(&existingUser).Updates(user).Error; err != nil {
+		log.Printf("Error updating user ID %d: %v", user.ID, err)
 		jsonResponse(w, 500, "Error updating user", nil)
 		return
 	}
 
-	jsonResponse(w, 0, "User updated successfully!", nil)
+	jsonResponse(w, 0, "User updated successfully!", existingUser)
 }
+
+// API: Lấy danh sách User
 func GetListUsers(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -128,6 +151,7 @@ func GetListUsers(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 func GetUserByID(w http.ResponseWriter, id string, db *gorm.DB) {
 	var user models.Users
 	if err := db.First(&user, "id = ?", id).Error; err != nil {
+		log.Printf("Error retrieving users: %v", err)
 		jsonResponse(w, 404, "User not found", nil)
 		return
 	}
@@ -139,12 +163,14 @@ func DeleteUser(w http.ResponseWriter, id string, db *gorm.DB) {
 	// Chuyển ID thành số nguyên
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
+		log.Printf("Invalid user ID: %s", id)
 		jsonResponse(w, 400, "Invalid ID", nil)
 		return
 	}
 
 	// Xóa dữ liệu
 	if err := db.Delete(&models.Users{}, idInt).Error; err != nil {
+		log.Printf("Error deleting user with ID %d: %v", idInt, err)
 		jsonResponse(w, 500, "Error deleting user", nil)
 		return
 	}
