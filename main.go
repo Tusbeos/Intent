@@ -9,22 +9,21 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 var cfg *config.Config
 
-// Kết nối Database
 func connectDB() (*gorm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
-		cfg.Database.User,
-		cfg.Database.Password,
-		cfg.Database.Host,
-		cfg.Database.Port,
-		cfg.Database.DBName,
+		viper.GetString("database.user"),
+		viper.GetString("database.password"),
+		viper.GetString("database.host"),
+		viper.GetInt("database.port"),
+		viper.GetString("database.dbname"),
 	)
-
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
@@ -34,7 +33,7 @@ func connectDB() (*gorm.DB, error) {
 }
 
 func main() {
-	cfg = config.LoadConfig()
+	cfg = config.LoadConfig() // Dùng Viper thay vì hardcode
 	db, err := connectDB()
 	if err != nil {
 		log.Fatalf("Database connection error: %v", err)
@@ -58,7 +57,8 @@ func main() {
 		id := r.PathValue("id")
 		GetUserByID(w, id, db)
 	})
-	// Khởi động server
+
+	log.Println("Server is running on port 8080...")
 	http.ListenAndServe(":8080", nil)
 }
 
