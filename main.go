@@ -1,9 +1,6 @@
 package main
 
 import (
-	config "Intent/config"
-	models "Intent/models"
-	request "Intent/request"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,6 +10,10 @@ import (
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	config "Intent/config"
+	models "Intent/models"
+	request "Intent/request"
 )
 
 var cfg *config.Config
@@ -34,7 +35,7 @@ func connectDB() (*gorm.DB, error) {
 }
 
 func main() {
-	cfg = config.LoadConfig() // Dùng Viper thay vì hardcode
+	cfg = config.LoadConfig()
 	db, err := connectDB()
 	if err != nil {
 		log.Fatalf("Database connection error: %v", err)
@@ -99,7 +100,6 @@ func AddUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 
 // API: Cập nhật user
 func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
-	// Lấy ID từ URL
 	id := r.PathValue("id")
 	if id == "" {
 		log.Println("Missing user ID")
@@ -149,38 +149,42 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 
 // API: Lấy danh sách User
 func GetListUsers(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+	// Lấy query parameters
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-
+	status := r.URL.Query().Get("status")
+	gender := r.URL.Query().Get("gender")
+	// Gán vào request model
 	req := request.GetListUsersRequest{
-		Page:  page,
-		Limit: limit,
+		Page:   page,
+		Limit:  limit,
+		Status: status,
+		Gender: gender,
 	}
 
-	// Validate request
-	if errMsg := request.ValidateRequest(&req); errMsg != nil {
-		log.Printf("Validation error: %v", errMsg)
-		jsonResponse(w, 400, errMsg.Error(), nil)
+	// Validate dữ liệu
+	if err := request.ValidateRequest(&req); err != nil {
+		jsonResponse(w, 400, err.Error(), nil)
 		return
 	}
 
-	// Đếm tổng số user
+	// Truy vấn database
 	var total int64
-	db.Model(&models.Users{}).Count(&total)
+	query := db.Model(&models.Users{})
+	if req.Status != "" {
+		query = query.Where("status = ?", req.Status)
+	}
+	if req.Status != "" {
+		query = query.Where("gender = ?", req.Gender)
+	}
+	query.Count(&total)
 
-	// Lấy danh sách user theo phân trang
 	var users []models.Users
 	offset := (req.Page - 1) * req.Limit
-	db.Offset(offset).Limit(req.Limit).Find(&users)
+	query.Offset(offset).Limit(req.Limit).Find(&users)
 
-	// Tạo object meta
-	meta := models.Meta{
-		Page:  req.Page,
-		Limit: req.Limit,
-		Total: int(total),
-	}
-
-	// Trả về JSON response
+	// Trả về kết quả
+	meta := models.Meta{Page: req.Page, Limit: req.Limit, Total: int(total)}
 	jsonResponseMeta(w, 0, "User list retrieved successfully", users, meta)
 }
 
@@ -207,7 +211,7 @@ func GetUserByID(w http.ResponseWriter, idStr string, db *gorm.DB) {
 		return
 	}
 
-	jsonResponse(w, http.StatusOK, "User retrieved successfully", user)
+	jsonResponse(w, 0, "User retrieved successfully", user)
 }
 
 // API: Xóa người dùng theo ID

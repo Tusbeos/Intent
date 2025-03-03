@@ -4,18 +4,18 @@ package request
 type UserCreateRequest struct {
 	Name     string `json:"name" validate:"required,min=3"`
 	Password string `json:"password" validate:"required,min=6"`
-	Email    string `json:"email" validate:"required,min=3`
-	Phone    string `json:"phone" validate:"required,min=9`
-	Gender   string `json:"gender"`
-	Status   string `json:"status" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Phone    string `json:"phone" validate:"required,e164"`
+	Gender   string `json:"gender" validate:"required,oneof=male female other"`
+	Status   string `json:"status" validate:"required,oneof=active inactive"`
 }
 
 // Request struct cho API cập nhật user
 type UserUpdateRequest struct {
 	Name     string `json:"name" validate:"required,min=3"`
 	Password string `json:"password" validate:"required,min=6"`
-	Email    string `json:"email" validate:"required,min=3`
-	Phone    string `json:"phone" validate:"required,min=9`
-	Gender   string `json:"gender"`
-	Status   string `json:"status" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Phone    string `json:"phone" validate:"required,e164"`
+	Gender   string `json:"gender" validate:"required,oneof=male female other"`
+	Status   string `json:"status" validate:"required,oneof=active inactive"`
 }
