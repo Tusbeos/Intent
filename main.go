@@ -80,14 +80,21 @@ func AddUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		return
 	}
 
-	user := models.Users{Name: req.Name, Password: req.Password}
+	user := models.Users{
+		Name:     req.Name,
+		Password: req.Password,
+		Email:    req.Email,
+		Phone:    req.Phone,
+		Gender:   req.Gender,
+		Status:   req.Status,
+	}
 	if err := db.Create(&user).Error; err != nil {
 		log.Printf("Error adding user: %v", err)
 		jsonResponse(w, 500, "Error adding user", nil)
 		return
 	}
 
-	jsonResponse(w, 0, "User added successfully!", user)
+	jsonResponse(w, 0, "User added successfully!", nil)
 }
 
 // API: Cập nhật user
@@ -127,13 +134,17 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	if err := db.Model(&existingUser).Updates(models.Users{
 		Name:     req.Name,
 		Password: req.Password,
+		Email:    req.Email,
+		Phone:    req.Phone,
+		Gender:   req.Gender,
+		Status:   req.Status,
 	}).Error; err != nil {
 		log.Printf("Error updating user ID %s: %v", id, err)
 		jsonResponse(w, 500, "Error updating user", nil)
 		return
 	}
 
-	jsonResponse(w, 0, "User updated successfully!", existingUser)
+	jsonResponse(w, 0, "User updated successfully!", nil)
 }
 
 // API: Lấy danh sách User
