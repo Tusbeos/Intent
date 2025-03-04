@@ -1,34 +1,35 @@
 package config
 
 import (
+	"encoding/json"
 	"log"
-
-	"github.com/spf13/viper"
+	"os"
 )
 
+type DatabaseConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	DBName   string `json:"dbname"`
+}
+
 type Config struct {
-	Database struct {
-		User     string
-		Password string
-		Host     string
-		Port     int
-		DBName   string
-	}
+	Database DatabaseConfig `json:"database"`
 }
 
 func LoadConfig() *Config {
-	viper.SetConfigName("config")
-	viper.SetConfigType("json")
-	viper.AddConfigPath(".")
+	file, err := os.Open("config.json")
+	if err != nil {
+		log.Fatalf("Error opening config file: %v", err)
+	}
+	defer file.Close()
 
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file: %v", err)
+	config := &Config{}
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(config); err != nil {
+		log.Fatalf("Error decoding JSON: %v", err)
 	}
 
-	var cfg Config
-	if err := viper.Unmarshal(&cfg); err != nil {
-		log.Fatalf("Error parsing config: %v", err)
-	}
-
-	return &cfg
+	return config
 }
