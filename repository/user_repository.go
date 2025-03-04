@@ -36,7 +36,7 @@ func (r *UserRepository) Delete(id int) error {
 }
 func (r *UserRepository) GetList(req request.GetListUsersRequest) ([]models.Users, int64, error) {
 	var users []models.Users
-	var total int64 // Khai báo biến total
+	var total int64
 
 	query := r.db.Model(&models.Users{})
 
