@@ -1,24 +1,24 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"Http_Management/models"
 )
 
-type DatabaseConfig struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	DBName   string `json:"dbname"`
-}
+// Biến Redis Client
+var RedisClient *redis.Client
 
-func ConnectDB(cfg *Config) (*gorm.DB, error) {
+// Kết nối MySQL
+func ConnectDB(cfg *models.Config) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
 		cfg.Database.User,
 		cfg.Database.Password,
@@ -33,22 +33,59 @@ func ConnectDB(cfg *Config) (*gorm.DB, error) {
 	return db, nil
 }
 
-type Config struct {
-	Database DatabaseConfig `json:"database"`
-}
-
-func LoadConfig() *Config {
+// Load config từ file JSON
+func LoadConfig() *models.Config {
 	file, err := os.Open("config.json")
 	if err != nil {
 		log.Fatalf("Error opening config file: %v", err)
 	}
 	defer file.Close()
 
-	config := &Config{}
+	config := &models.Config{}
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(config); err != nil {
 		log.Fatalf("Error decoding JSON: %v", err)
 	}
 
 	return config
+}
+
+// Hàm kết nối Redis
+func ConnectRedis(cfg *models.Config) *redis.Client {
+	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
+	client := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
+	// Kiểm tra kết nối Redis
+	ctx := context.Background()
+	_, err := client.Ping(ctx).Result()
+	if err != nil {
+		log.Fatalf("Redis connection error: %v", err)
+		return nil
+	}
+
+	log.Println("Successfully connected to Redis!")
+	RedisClient = client
+	return client
+}
+
+// Hàm lưu cache vào Redis
+func SetCache(key string, value string) error {
+	ctx := context.Background()
+	return RedisClient.Set(ctx, key, value, 0).Err()
+}
+
+// Hàm lấy dữ liệu từ Redis
+func GetCache(key string) (string, error) {
+	ctx := context.Background()
+	return RedisClient.Get(ctx, key).Result()
+}
+
+// Hàm xóa cache
+func DeleteCache(key string) error {
+	ctx := context.Background()
+	return RedisClient.Del(ctx, key).Err()
 }
