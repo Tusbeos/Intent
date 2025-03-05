@@ -28,7 +28,6 @@ func RedisCache(redisClient *redis.Client) echo.MiddlewareFunc {
 				// Nếu có cache, trả về response từ Redis
 				return c.JSONBlob(http.StatusOK, []byte(cachedResponse))
 			}
-
 			// Nếu không có cache, tiếp tục request
 			resBody := new(bytes.Buffer)
 			writer := &responseWriter{
