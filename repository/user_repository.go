@@ -3,8 +3,8 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"Intent/models"
-	"Intent/request"
+	"Http_Management/models"
+	"Http_Management/request"
 )
 
 type UserRepository struct {

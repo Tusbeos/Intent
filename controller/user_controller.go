@@ -6,9 +6,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"Intent/request"
-	"Intent/response"
-	"Intent/service"
+	"Http_Management/request"
+	"Http_Management/response"
+	"Http_Management/service"
 )
 
 // UserController định nghĩa các handler cho user

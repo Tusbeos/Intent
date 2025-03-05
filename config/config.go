@@ -2,8 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type DatabaseConfig struct {
@@ -12,6 +16,21 @@ type DatabaseConfig struct {
 	User     string `json:"user"`
 	Password string `json:"password"`
 	DBName   string `json:"dbname"`
+}
+
+func ConnectDB(cfg *Config) (*gorm.DB, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.DBName)
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+	log.Println("Successfully connected to MySQL!")
+	return db, nil
 }
 
 type Config struct {

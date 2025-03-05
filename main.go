@@ -1,35 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/labstack/echo/v4"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 
-	"Intent/config"
-	"Intent/controller"
+	"Http_Management/config"
+	"Http_Management/controller"
 )
-
-func connectDB(cfg *config.Config) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
-		cfg.Database.User,
-		cfg.Database.Password,
-		cfg.Database.Host,
-		cfg.Database.Port,
-		cfg.Database.DBName)
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return nil, err
-	}
-	log.Println("Successfully connected to MySQL!")
-	return db, nil
-}
 
 func main() {
 	cfg := config.LoadConfig()
-	db, err := connectDB(cfg)
+	db, err := config.ConnectDB(cfg)
 	if err != nil {
 		log.Fatalf("Database connection error: %v", err)
 	}

@@ -42,5 +42,5 @@ func ValidateRequest(r interface{}) error {
 			errorMessages = append(errorMessages, fmt.Sprintf("Trường '%s' không hợp lệ", fieldName))
 		}
 	}
-	return errors.New(strings.Join(errorMessages, "; ")) // Trả về error thay vì string
+	return errors.New(strings.Join(errorMessages, "; "))
 }

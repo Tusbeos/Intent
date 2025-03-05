@@ -6,9 +6,9 @@ import (
 
 	"gorm.io/gorm"
 
-	"Intent/models"
-	"Intent/repository"
-	"Intent/request"
+	"Http_Management/models"
+	"Http_Management/repository"
+	"Http_Management/request"
 )
 
 // UserService định nghĩa các chức năng xử lý user

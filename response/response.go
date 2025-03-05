@@ -1,6 +1,6 @@
 package response
 
-import "Intent/models"
+import "Http_Management/models"
 
 // SuccessResponse tạo response thành công
 func SuccessResponse(code int, message string, data interface{}) models.Response {
