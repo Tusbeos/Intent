@@ -6,9 +6,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"Http_Management/config"
-	"Http_Management/controller"
-	"Http_Management/middleware"
+	"intent/config"
+	"intent/controller"
+	"intent/middleware"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 	// Thêm middleware Redis Cache
 	e.Use(middleware.RedisCache(redisClient))
 
-	// Thêm middleware Rate Limit (10 requests mỗi 30 giây)
+	// Thêm middleware Rate Limit
 	e.Use(middleware.RateLimitMiddleware(redisClient, 10, 30*time.Second))
 
 	// Đăng ký API routes

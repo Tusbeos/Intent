@@ -4,8 +4,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 
-	"Http_Management/repository"
-	"Http_Management/service"
+	"intent/repository"
+	"intent/service"
 )
 
 // RegisterUserRoutes đăng ký các route liên quan đến user

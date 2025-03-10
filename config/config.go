@@ -11,7 +11,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"Http_Management/models"
+	"intent/models"
 )
 
 // Biến Redis Client
