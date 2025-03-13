@@ -10,15 +10,20 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type responseWriter struct {
-	http.ResponseWriter
-	body *bytes.Buffer
-}
-
 // Middleware Redis Cache
-func RedisCache(redisClient *redis.Client) echo.MiddlewareFunc {
+func RedisCache(redisClient *redis.Client, cacheableRoutes map[string]bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			// Chỉ cache request GET
+			if c.Request().Method != http.MethodGet {
+				return next(c)
+			}
+
+			// Kiểm tra xem route này có trong danh sách cần cache không
+			if _, shouldCache := cacheableRoutes[c.Path()]; !shouldCache {
+				return next(c)
+			}
+
 			ctx := context.Background()
 			key := "cache:" + c.Request().RequestURI
 
@@ -28,6 +33,7 @@ func RedisCache(redisClient *redis.Client) echo.MiddlewareFunc {
 				// Nếu có cache, trả về response từ Redis
 				return c.JSONBlob(http.StatusOK, []byte(cachedResponse))
 			}
+
 			// Nếu không có cache, tiếp tục request
 			resBody := new(bytes.Buffer)
 			writer := &responseWriter{
@@ -50,17 +56,20 @@ func RedisCache(redisClient *redis.Client) echo.MiddlewareFunc {
 }
 
 // Custom Response Writer để lưu response
+type responseWriter struct {
+	http.ResponseWriter
+	body *bytes.Buffer
+}
+
 func (w *responseWriter) Write(b []byte) (int, error) {
 	w.body.Write(b)
 	return w.ResponseWriter.Write(b)
 }
 
-// Thêm Header() để implement http.ResponseWriter
 func (w *responseWriter) Header() http.Header {
 	return w.ResponseWriter.Header()
 }
 
-// Thêm WriteHeader() để implement http.ResponseWriter
 func (w *responseWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }

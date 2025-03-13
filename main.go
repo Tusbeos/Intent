@@ -27,14 +27,19 @@ func main() {
 	// Khởi tạo Echo server
 	e := echo.New()
 
+	cacheableRoutes := map[string]bool{
+		"/users":     true,
+		"/users/:id": true,
+	}
+
 	// Thêm middleware Redis Cache
-	e.Use(middleware.RedisCache(redisClient))
+	e.Use(middleware.RedisCache(redisClient, cacheableRoutes))
 
 	// Thêm middleware Rate Limit
 	e.Use(middleware.RateLimitMiddleware(redisClient, 10, 30*time.Second))
 
 	// Đăng ký API routes
-	controller.RegisterUserRoutes(e, db)
+	controller.RegisterUserRoutes(e, db, redisClient)
 
 	// Chạy server
 	port := ":8080"
