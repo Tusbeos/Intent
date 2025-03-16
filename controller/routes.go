@@ -15,7 +15,7 @@ func RegisterUserRoutes(e *echo.Echo, db *gorm.DB, redisClient *redis.Client) {
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
 	userController := NewUserController(userService)
-	// Chỉ cache một số route GET
+
 	cacheableRoutes := map[string]bool{
 		"/users":     true,
 		"/users/:id": true,
