@@ -74,13 +74,13 @@ func (r *UserRepository) GetList(req request.GetListUsersRequest) ([]models.User
 		return nil, 0, err
 	}
 
-	// Lưu vào cache (10 phút)
+	// Lưu vào cache (1 phút)
 	cachedData, _ := json.Marshal(struct {
 		Users []models.Users
 		Total int64
 	}{users, total})
 
-	r.redisClient.Set(ctx, cacheKey, cachedData, 10*time.Minute)
+	r.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Minute)
 
 	return users, total, nil
 }
@@ -104,9 +104,9 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 		return nil, err
 	}
 
-	// Lưu vào cache (10 phút)
+	// Lưu vào cache (1 phút)
 	userJSON, _ := json.Marshal(user)
-	r.redisClient.Set(ctx, cacheKey, userJSON, 10*time.Minute)
+	r.redisClient.Set(ctx, cacheKey, userJSON, 1*time.Minute)
 
 	return &user, nil
 }

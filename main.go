@@ -20,7 +20,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection error: %v", err)
 	}
-
 	// Kết nối Redis
 	redisClient := config.ConnectRedis(cfg)
 
