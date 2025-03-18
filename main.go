@@ -27,15 +27,6 @@ func main() {
 	// Khởi tạo Echo server
 	e := echo.New()
 
-	// // Định nghĩa các route cần cache
-	// cacheableRoutes := map[string]bool{
-	// 	"/users":     true,
-	// 	"/users/:id": true,
-	// }
-
-	// // Đăng ký middleware Redis Cache
-	// e.Use(middleware.RedisCache(redisClient, cacheableRoutes))
-
 	// Thêm middleware Rate Limit
 	e.Use(middleware.RateLimitMiddleware(redisClient, 10, 30*time.Second))
 
