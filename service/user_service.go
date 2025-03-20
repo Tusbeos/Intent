@@ -1,11 +1,16 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"log"
 	"strconv"
+	"time"
 
 	"gorm.io/gorm"
 
+	"intent/config"
 	"intent/models"
 	"intent/repository"
 	"intent/request"
@@ -21,7 +26,7 @@ func NewUserService(userRepo *repository.UserRepository) *UserService {
 	return &UserService{UserRepo: userRepo}
 }
 
-// CreateUser thêm user mới
+// CreateUser
 func (s *UserService) CreateUser(req request.UserCreateRequest) (*models.Users, error) {
 	user := models.Users{
 		Name:     req.Name,
@@ -39,7 +44,7 @@ func (s *UserService) CreateUser(req request.UserCreateRequest) (*models.Users, 
 	return &user, nil
 }
 
-// UpdateUser cập nhật thông tin user
+// UpdateUser
 func (s *UserService) UpdateUser(id int, req request.UserUpdateRequest) error {
 	_, err := s.UserRepo.GetByID(strconv.Itoa(id))
 	if err != nil {
@@ -57,7 +62,7 @@ func (s *UserService) UpdateUser(id int, req request.UserUpdateRequest) error {
 	return nil
 }
 
-// GetListUsers lấy danh sách user
+// GetListUsers
 func (s *UserService) GetListUsers(req request.GetListUsersRequest) ([]models.Users, models.Meta, error) {
 	users, total, err := s.UserRepo.GetList(req)
 	if err != nil {
@@ -73,12 +78,12 @@ func (s *UserService) GetListUsers(req request.GetListUsersRequest) ([]models.Us
 	return users, meta, nil
 }
 
-// GetUserByID lấy thông tin user theo ID
+// GetUserByID
 func (s *UserService) GetUserByID(id int) (*models.Users, error) {
 	return s.UserRepo.GetByID(strconv.Itoa(id))
 }
 
-// DeleteUser xóa user theo ID
+// DeleteUser
 func (s *UserService) DeleteUser(id int) error {
 	user, err := s.UserRepo.GetByID(strconv.Itoa(id))
 	if err != nil {
@@ -95,4 +100,23 @@ func (s *UserService) DeleteUser(id int) error {
 	}
 
 	return nil
+}
+
+// PublishUserAction gửi message vào Redis queue
+func PublishUserAction(userID int, action string) {
+	msg := models.UserActionMessage{
+		UserID:    userID,
+		Action:    action,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Println("JSON marshal error:", err)
+		return
+	}
+
+	if err := config.RedisClient.LPush(context.Background(), "user_action_queue", data).Err(); err != nil {
+		log.Println("Redis push error:", err)
+	}
 }

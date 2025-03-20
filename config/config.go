@@ -14,8 +14,9 @@ import (
 	"intent/models"
 )
 
-// Biến Redis Client
+// Các  Biến
 var RedisClient *redis.Client
+var DB *gorm.DB
 
 // Kết nối MySQL
 func ConnectDB(cfg *models.Config) (*gorm.DB, error) {
@@ -70,22 +71,4 @@ func ConnectRedis(cfg *models.Config) *redis.Client {
 	log.Println("Successfully connected to Redis!")
 	RedisClient = client
 	return client
-}
-
-// Hàm lưu cache vào Redis
-func SetCache(key string, value string) error {
-	ctx := context.Background()
-	return RedisClient.Set(ctx, key, value, 0).Err()
-}
-
-// Hàm lấy dữ liệu từ Redis
-func GetCache(key string) (string, error) {
-	ctx := context.Background()
-	return RedisClient.Get(ctx, key).Result()
-}
-
-// Hàm xóa cache
-func DeleteCache(key string) error {
-	ctx := context.Background()
-	return RedisClient.Del(ctx, key).Err()
 }

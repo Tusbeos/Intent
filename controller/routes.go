@@ -13,7 +13,7 @@ import (
 func RegisterUserRoutes(e *echo.Echo, db *gorm.DB, redisClient *redis.Client) {
 	userRepo := repository.NewUserRepository(db, redisClient)
 	userService := service.NewUserService(userRepo)
-	userController := NewUserController(userService)
+	userController := NewUserController(userService, redisClient)
 
 	usergroup := e.Group("/users")
 	usergroup.POST("", userController.CreateUserHandler)

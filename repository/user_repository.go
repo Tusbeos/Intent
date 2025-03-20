@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"intent/models"
 	"intent/request"
-
-	"github.com/redis/go-redis/v9"
 )
 
 type UserRepository struct {
@@ -23,22 +23,22 @@ func NewUserRepository(db *gorm.DB, redisClient *redis.Client) *UserRepository {
 	return &UserRepository{db: db, redisClient: redisClient}
 }
 
-// ADD USER
+// AddUser
 func (r *UserRepository) Create(user *models.Users) error {
 	return r.db.Create(user).Error
 }
 
-// UPDATE USER
+// UpdateUser
 func (r *UserRepository) Update(id int, req request.UserUpdateRequest) error {
 	return r.db.Model(&models.Users{}).Where("id = ?", id).Updates(req).Error
 }
 
-// DEL USER
+// DeleteUser
 func (r *UserRepository) Delete(id int) error {
 	return r.db.Delete(&models.Users{}, id).Error
 }
 
-// GET LIST USER
+// GetListUser
 func (r *UserRepository) GetList(req request.GetListUsersRequest) ([]models.Users, int64, error) {
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("users:status=%s:gender=%s:page=%d:limit=%d", req.Status, req.Gender, req.Page, req.Limit)
@@ -85,7 +85,7 @@ func (r *UserRepository) GetList(req request.GetListUsersRequest) ([]models.User
 	return users, total, nil
 }
 
-// GET USER BY ID
+// GetUserById
 func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("user:%s", id)
@@ -109,4 +109,13 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 	r.redisClient.Set(ctx, cacheKey, userJSON, 1*time.Minute)
 
 	return &user, nil
+}
+
+// Lưu log vào DB
+func (r *UserRepository) SaveLogAction(logAction models.LogAction) error {
+	if err := r.db.Create(&logAction).Error; err != nil {
+		log.Println("Failed to save log action:", err)
+		return err
+	}
+	return nil
 }
