@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"intent/config"
 	"intent/models"
 	"intent/repository"
-
-	"github.com/redis/go-redis/v9"
 )
 
 func main() {
