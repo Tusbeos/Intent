@@ -1,16 +1,11 @@
 package service
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
-	"time"
 
 	"gorm.io/gorm"
 
-	"intent/config"
 	"intent/models"
 	"intent/repository"
 	"intent/request"
@@ -37,28 +32,28 @@ func (s *UserService) CreateUser(req request.UserCreateRequest) (*models.Users, 
 		Status:   req.Status,
 	}
 
-	err := s.UserRepo.Create(&user)
-	if err != nil {
+	if err := s.UserRepo.Create(&user); err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-// UpdateUser
-func (s *UserService) UpdateUser(id int, req request.UserUpdateRequest) error {
-	_, err := s.UserRepo.GetByID(strconv.Itoa(id))
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("User not found")
+// UpdateUsers - Cập nhật nhiều user cùng lúc
+func (s *UserService) UpdateUser(reqs []request.UserUpdateRequest) error {
+	for _, req := range reqs {
+		_, err := s.UserRepo.GetByID(strconv.Itoa(req.ID))
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("User not found: ID " + strconv.Itoa(req.ID))
+			}
+			return err
 		}
-		return err
-	}
 
-	err = s.UserRepo.Update(id, req)
-	if err != nil {
-		return err
+		err = s.UserRepo.Update(req.ID, req)
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -100,23 +95,4 @@ func (s *UserService) DeleteUser(id int) error {
 	}
 
 	return nil
-}
-
-// PublishUserAction gửi message vào Redis queue
-func PublishUserAction(userID int, action string) {
-	msg := models.UserActionMessage{
-		UserID:    userID,
-		Action:    action,
-		Timestamp: time.Now().Format(time.RFC3339),
-	}
-
-	data, err := json.Marshal(msg)
-	if err != nil {
-		log.Println("JSON marshal error:", err)
-		return
-	}
-
-	if err := config.RedisClient.LPush(context.Background(), "user_action_queue", data).Err(); err != nil {
-		log.Println("Redis push error:", err)
-	}
 }

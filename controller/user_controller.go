@@ -1,16 +1,14 @@
 package controller
 
 import (
-	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 
+	"intent/models"
 	"intent/request"
 	"intent/response"
 	"intent/service"
@@ -30,22 +28,46 @@ func NewUserController(userService *service.UserService, redisClient *redis.Clie
 	}
 }
 
-// CreateUserHandler xử lý tạo user mới
+// CreateUserHandler
 func (uc *UserController) CreateUserHandler(c echo.Context) error {
-	var req request.UserCreateRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request", err.Error()))
+	var reqs []request.UserCreateRequest
+	if err := c.Bind(&reqs); err != nil {
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request format", err.Error()))
 	}
 
-	user, err := uc.UserService.CreateUser(req)
+	var createdUsers []models.Users
+	for _, req := range reqs {
+		user, err := uc.UserService.CreateUser(req)
+		if err != nil {
+			log.Println("Failed to create user:", err)
+			continue
+		}
+
+		uc.pushToLog(user.ID, "CREATE")
+		createdUsers = append(createdUsers, *user)
+	}
+
+	return c.JSON(http.StatusOK, response.SuccessResponse(0, "Users created successfully", createdUsers))
+}
+
+// UpdateUserHandler xử lý cập nhật user
+func (uc *UserController) UpdateUserHandler(c echo.Context) error {
+	var reqs []request.UserUpdateRequest
+	if err := c.Bind(&reqs); err != nil {
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request format", err.Error()))
+	}
+
+	err := uc.UserService.UpdateUser(reqs)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to create user", err.Error()))
+		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to update users", err.Error()))
 	}
 
-	// Bắn message vào Redis queue
-	uc.pushToQueue(user.ID, "CREATE")
+	// Gửi event cập nhật
+	for _, req := range reqs {
+		uc.pushToLog(req.ID, "UPDATE")
+	}
 
-	return c.JSON(http.StatusCreated, response.SuccessResponse(0, "User created successfully", user))
+	return c.JSON(http.StatusOK, response.SuccessResponse(0, "Users updated successfully", nil))
 }
 
 // GetUserByIDHandler xử lý lấy user theo ID
@@ -63,29 +85,6 @@ func (uc *UserController) GetUserByIDHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User retrieved successfully", user))
 }
 
-// UpdateUserHandler xử lý cập nhật user
-func (uc *UserController) UpdateUserHandler(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid user ID", nil))
-	}
-
-	var req request.UserUpdateRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request", err.Error()))
-	}
-
-	err = uc.UserService.UpdateUser(id, req)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to update user", err.Error()))
-	}
-
-	// Bắn message vào Redis queue
-	uc.pushToQueue(id, "UPDATE")
-
-	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User updated successfully", nil))
-}
-
 // DeleteUserHandler xử lý xóa user
 func (uc *UserController) DeleteUserHandler(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -99,7 +98,7 @@ func (uc *UserController) DeleteUserHandler(c echo.Context) error {
 	}
 
 	// Bắn message vào Redis queue
-	uc.pushToQueue(id, "DELETE")
+	uc.pushToLog(id, "DELETE")
 
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User deleted successfully", nil))
 }
@@ -123,21 +122,4 @@ func (uc *UserController) GetListUsersHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to get users", err.Error()))
 	}
 	return c.JSON(http.StatusOK, response.SuccessResponseWithMeta(0, "Users retrieved successfully", users, meta))
-}
-
-// pushToQueue đẩy message vào Redis queue
-func (uc *UserController) pushToQueue(userID int, action string) {
-	msg, err := json.Marshal(map[string]interface{}{
-		"user_id":   userID,
-		"action":    action,
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
-	if err != nil {
-		log.Println("Failed to marshal message:", err)
-		return
-	}
-
-	if err := uc.RedisClient.RPush(context.Background(), "user_action_queue", msg).Err(); err != nil {
-		log.Println("Failed to push message to Redis:", err)
-	}
 }

@@ -1,17 +1,19 @@
 {
 	"database": {
-	  "host": "localhost",
-	  "port": 3306,
-	  "user": "Main",
-	  "password": "123456",
-	  "dbname": "golangdb"
+		"host": "localhost",
+		"port": 3306,
+		"user": "Main",
+		"password": "123456",
+		"dbname": "golangdb"
 	},
 	"redis": {
-	  "host": "localhost",
-	  "port": 6379,
-	  "password": "",
-	  "db": 0
+		"host": "localhost",
+		"port": 6379,
+		"password": "",
+		"db": 0
+	},
+	"kafka": {
+		"brokers": ["localhost:9092"],
+		"topic": "user_action_queue"
 	}
-  }
-
-  
+}

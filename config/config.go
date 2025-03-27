@@ -72,3 +72,8 @@ func ConnectRedis(cfg *models.Config) *redis.Client {
 	RedisClient = client
 	return client
 }
+
+// Hàm lấy cấu hình Kafka
+func GetKafkaConfig(cfg *models.Config) (string, string) {
+	return cfg.Kafka.Brokers[0], cfg.Kafka.Topic
+}

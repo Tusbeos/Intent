@@ -26,6 +26,9 @@ func main() {
 	// Khởi tạo Echo server
 	e := echo.New()
 
+	// Thêm middleware Kafka
+	e.Use(middleware.KafkaMiddleware)
+
 	// Thêm middleware Rate Limit
 	e.Use(middleware.RateLimitMiddleware(redisClient, 10, 30*time.Second))
 
@@ -36,4 +39,5 @@ func main() {
 	port := ":8080"
 	log.Printf("Server is running on port %s...", port)
 	e.Logger.Fatal(e.Start(port))
+
 }

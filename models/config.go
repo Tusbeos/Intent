@@ -16,8 +16,15 @@ type RedisConfig struct {
 	DB       int    `json:"db"`
 }
 
+// Cấu hình Kafka
+type KafkaConfig struct {
+	Brokers []string `json:"brokers"`
+	Topic   string   `json:"topic"`
+}
+
 // Cấu hình tổng hợp
 type Config struct {
 	Database DatabaseConfig `json:"database"`
 	Redis    RedisConfig    `json:"redis"`
+	Kafka    KafkaConfig    `json:"kafka"`
 }

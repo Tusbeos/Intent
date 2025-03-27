@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -111,11 +110,7 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 	return &user, nil
 }
 
-// Lưu log vào DB
-func (r *UserRepository) SaveLogAction(logAction models.LogAction) error {
-	if err := r.db.Create(&logAction).Error; err != nil {
-		log.Println("Failed to save log action:", err)
-		return err
-	}
-	return nil
+// CreateBatch tạo nhiều user cùng lúc
+func (r *UserRepository) CreateBatch(users []models.Users) error {
+	return r.db.Create(&users).Error
 }

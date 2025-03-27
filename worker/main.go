@@ -1,72 +1,52 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"log"
-	"time"
-
-	"github.com/redis/go-redis/v9"
 
 	"intent/config"
-	"intent/models"
 	"intent/repository"
+	"intent/worker/log_action"
+	"intent/worker/message_queue"
 )
 
 func main() {
-	// Load cấu hình & kết nối DB
+	log.Println("-------------------------------++-------------------------------")
+	log.Println("[Worker] Loading configuration...")
+
+	// Load config
 	cfg := config.LoadConfig()
+
+	// Kết nối DB
 	db, err := config.ConnectDB(cfg)
 	if err != nil {
-		log.Fatal("Database connection failed:", err)
+		log.Fatalf("[Worker] Database connection failed: %v", err)
 	}
 
 	// Kết nối Redis
 	redisClient := config.ConnectRedis(cfg)
 	if redisClient == nil {
-		log.Fatal("Failed to connect to Redis")
+		log.Fatal("[Worker] Failed to connect to Redis")
 	}
 
 	// Tạo instance repository
 	userRepo := repository.NewUserRepository(db, redisClient)
 
-	ctx := context.Background()
-	log.Println("Worker is running...")
+	// Khởi động worker Redis (lưu log action)
+	redisWorker := log_action.NewRedisWorker(redisClient, userRepo)
+	go func() {
+		log.Println("[Worker] Starting Redis worker...")
+		redisWorker.Start()
+	}()
+	log.Println("[Worker] Redis worker started successfully.")
 
-	for {
-		// Lấy message từ Redis queue
-		msg, err := redisClient.RPop(ctx, "user_action_queue").Result()
-		if err != nil {
-			if err == redis.Nil {
-				time.Sleep(2 * time.Second) // Đợi nếu queue rỗng
-				continue
-			}
-			log.Println("Redis queue error:", err)
-			continue
-		}
+	// Khởi động worker Kafka (message queue)
+	kafkaBroker, topic := config.GetKafkaConfig(cfg)
+	kafkaWorker := message_queue.NewKafkaWorker(kafkaBroker, topic, userRepo, 3)
 
-		// Parse JSON
-		var userAction models.UserActionMessage
-		if err := json.Unmarshal([]byte(msg), &userAction); err != nil {
-			log.Println("JSON parse error:", err)
-			continue
-		}
-
-		// Chuyển `Timestamp` từ string sang `time.Time`
-		parsedTime, err := time.Parse(time.RFC3339, userAction.Timestamp)
-		if err != nil {
-			log.Println("Timestamp parse error:", err)
-			continue
-		}
-
-		// Lưu log vào DB
-		err = userRepo.SaveLogAction(models.LogAction{
-			UserID:    userAction.UserID,
-			Action:    userAction.Action,
-			Timestamp: parsedTime,
-		})
-		if err != nil {
-			log.Println("DB save error:", err)
-		}
-	}
+	go func() {
+		log.Println("[Worker] Starting Kafka worker...")
+		kafkaWorker.Start()
+	}()
+	log.Println("[Worker] Kafka worker started, waiting for messages...")
+	select {}
 }
