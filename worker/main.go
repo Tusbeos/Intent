@@ -38,10 +38,12 @@ func main() {
 		redisWorker.Start()
 	}()
 	log.Println("[Worker] Redis worker started successfully.")
+	// Khởi tạo Processor
+	processor := message_queue.NewProcessor(userRepo, 3)
 
-	// Khởi động worker Kafka (message queue)
+	// Khởi động Kafka Worker với Processor
 	kafkaBroker, topic := config.GetKafkaConfig(cfg)
-	kafkaWorker := message_queue.NewKafkaWorker(kafkaBroker, topic, userRepo, 3)
+	kafkaWorker := message_queue.NewKafkaWorker(kafkaBroker, topic, processor)
 
 	go func() {
 		log.Println("[Worker] Starting Kafka worker...")

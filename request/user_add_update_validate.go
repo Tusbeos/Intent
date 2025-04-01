@@ -20,3 +20,7 @@ type UserUpdateRequest struct {
 	Gender   string `json:"gender" validate:"required,oneof=male female other"`
 	Status   string `json:"status" validate:"required,oneof=active inactive"`
 }
+
+func (u *UserCreateRequest) Validate() error {
+	return ValidateRequest(u)
+}

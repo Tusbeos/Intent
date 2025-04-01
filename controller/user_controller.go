@@ -35,6 +35,13 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request format", err.Error()))
 	}
 
+	// Validate từng request trong danh sách
+	for _, req := range reqs {
+		if err := request.ValidateRequest(req); err != nil {
+			return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Validation failed", err.Error()))
+		}
+	}
+
 	var createdUsers []models.Users
 	for _, req := range reqs {
 		user, err := uc.UserService.CreateUser(req)
@@ -50,11 +57,18 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "Users created successfully", createdUsers))
 }
 
-// UpdateUserHandler xử lý cập nhật user
+// UpdateUserHandler
 func (uc *UserController) UpdateUserHandler(c echo.Context) error {
 	var reqs []request.UserUpdateRequest
 	if err := c.Bind(&reqs); err != nil {
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request format", err.Error()))
+	}
+
+	// Validate request
+	for _, req := range reqs {
+		if err := request.ValidateRequest(req); err != nil {
+			return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Validation failed", err.Error()))
+		}
 	}
 
 	err := uc.UserService.UpdateUser(reqs)
@@ -70,7 +84,7 @@ func (uc *UserController) UpdateUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "Users updated successfully", nil))
 }
 
-// GetUserByIDHandler xử lý lấy user theo ID
+// GetUserByIDHandler
 func (uc *UserController) GetUserByIDHandler(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -85,7 +99,7 @@ func (uc *UserController) GetUserByIDHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User retrieved successfully", user))
 }
 
-// DeleteUserHandler xử lý xóa user
+// DeleteUserHandler - Giữ nguyên
 func (uc *UserController) DeleteUserHandler(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -103,7 +117,7 @@ func (uc *UserController) DeleteUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User deleted successfully", nil))
 }
 
-// GetListUsersHandler xử lý lấy danh sách user
+// GetListUsersHandler
 func (uc *UserController) GetListUsersHandler(c echo.Context) error {
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
