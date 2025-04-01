@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"gorm.io/gorm"
@@ -23,6 +24,11 @@ func NewUserService(userRepo *repository.UserRepository) *UserService {
 
 // CreateUser
 func (s *UserService) CreateUser(req request.UserCreateRequest) (*models.Users, error) {
+	existingUser, _ := s.UserRepo.FindByEmailOrPhone(req.Email, req.Phone)
+	if existingUser != nil {
+		return nil, fmt.Errorf("User with email %s or phone %s already exists", req.Email, req.Phone)
+	}
+
 	user := models.Users{
 		Name:     req.Name,
 		Password: req.Password,
@@ -33,12 +39,15 @@ func (s *UserService) CreateUser(req request.UserCreateRequest) (*models.Users, 
 	}
 
 	if err := s.UserRepo.Create(&user); err != nil {
+		fmt.Println("Failed to create user:", err)
 		return nil, err
 	}
+
+	fmt.Println("Successfully created user with ID:", user.ID)
 	return &user, nil
 }
 
-// UpdateUsers - Cập nhật nhiều user cùng lúc
+// UpdateUsers
 func (s *UserService) UpdateUser(reqs []request.UserUpdateRequest) error {
 	for _, req := range reqs {
 		_, err := s.UserRepo.GetByID(strconv.Itoa(req.ID))

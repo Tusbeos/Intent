@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -113,4 +114,15 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 // CreateBatch tạo nhiều user cùng lúc
 func (r *UserRepository) CreateBatch(users []models.Users) error {
 	return r.db.Create(&users).Error
+}
+
+func (r *UserRepository) FindByEmailOrPhone(email, phone string) (*models.Users, error) {
+	var user models.Users
+	if err := r.db.Where("email = ? OR phone = ?", email, phone).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Không tìm thấy user, có thể tạo mới
+		}
+		return nil, err
+	}
+	return &user, nil // Tìm thấy user, trả về lỗi trùng lặp
 }

@@ -35,7 +35,7 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request format", err.Error()))
 	}
 
-	// Validate từng request trong danh sách
+	// Validate từng request
 	for _, req := range reqs {
 		if err := request.ValidateRequest(req); err != nil {
 			return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Validation failed", err.Error()))
@@ -43,15 +43,38 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 	}
 
 	var createdUsers []models.Users
+	var failedUsers []map[string]string
+
 	for _, req := range reqs {
 		user, err := uc.UserService.CreateUser(req)
 		if err != nil {
 			log.Println("Failed to create user:", err)
+			// Lưu lại thông tin user bị lỗi
+			failedUsers = append(failedUsers, map[string]string{
+				"email": req.Email,
+				"phone": req.Phone,
+				"error": err.Error(),
+			})
 			continue
 		}
 
 		uc.pushToLog(user.ID, "CREATE")
 		createdUsers = append(createdUsers, *user)
+	}
+
+	// Nếu tất cả user bị lỗi -> 400 Bad Request
+	if len(createdUsers) == 0 {
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "All users failed to create", failedUsers))
+	}
+
+	// Nếu có user được tạo nhưng cũng có user bị lỗi -> 207 Multi-Status
+	if len(failedUsers) > 0 {
+		return c.JSON(http.StatusMultiStatus, map[string]interface{}{
+			"error_code": 0,
+			"message":    "Some users failed to create",
+			"data":       createdUsers,
+			"errors":     failedUsers,
+		})
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "Users created successfully", createdUsers))
