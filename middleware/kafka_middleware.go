@@ -15,12 +15,33 @@ import (
 	"intent/config"
 )
 
-// KafkaMiddleware gửi request vào Kafka với request_id
+type CustomResponseRecorder struct {
+	http.ResponseWriter
+	Body *bytes.Buffer
+}
+
+func NewResponseRecorder(w http.ResponseWriter) *CustomResponseRecorder {
+	return &CustomResponseRecorder{
+		ResponseWriter: w,
+		Body:           new(bytes.Buffer),
+	}
+}
+
+func (r *CustomResponseRecorder) Write(b []byte) (int, error) {
+	r.Body.Write(b)
+	return r.ResponseWriter.Write(b)
+}
+
+func (r *CustomResponseRecorder) Header() http.Header {
+	return r.ResponseWriter.Header()
+}
+
+// KafkaMiddleware gửi request vào Worker Kafka với request_id
 func KafkaMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// Tạo request_id (UUID)
 		requestID := uuid.New().String()
-		c.Set("request_id", requestID) // Lưu vào context Echo
+		c.Set("request_id", requestID)
 
 		// Đọc body request và khôi phục lại
 		bodyBytes, err := io.ReadAll(c.Request().Body)
@@ -30,7 +51,6 @@ func KafkaMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		c.Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		// Kiểm tra JSON có phải object (`{}`) hoặc array (`[]`) không
 		var jsonData interface{}
 		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
 			log.Println("[KafkaMiddleware] Invalid JSON request:", err)
@@ -67,7 +87,7 @@ func KafkaMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		// Gói dữ liệu gửi đi
 		message := map[string]interface{}{
 			"request_id": requestID,
-			"request":    jsonData, // Lưu nguyên dạng JSON
+			"request":    jsonData,
 			"response":   responseData,
 			"path":       c.Request().URL.Path,
 			"method":     c.Request().Method,

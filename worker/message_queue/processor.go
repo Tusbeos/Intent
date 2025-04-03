@@ -37,8 +37,6 @@ func (p *Processor) ProcessMessage(msg []byte) {
 		log.Printf("[Processor] Validation failed: %v", err)
 		return
 	}
-
-	// Chuyển đổi UserCreateRequest thành models.Users
 	user := models.Users{
 		Name:     data.Name,
 		Password: data.Password,
@@ -63,7 +61,7 @@ func (p *Processor) ProcessMessage(msg []byte) {
 		}
 
 		log.Printf("[Processor] Attempt %d/%d failed, error: %v", attempt, p.retries, err)
-		time.Sleep(2 * time.Second) // Chờ 2 giây trước khi thử lại
+		time.Sleep(2 * time.Second)
 	}
 
 	log.Println("[Processor] Failed to process message after retries")

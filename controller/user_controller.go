@@ -67,7 +67,6 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "All users failed to create", failedUsers))
 	}
 
-	// Nếu có user được tạo nhưng cũng có user bị lỗi -> 207 Multi-Status
 	if len(failedUsers) > 0 {
 		return c.JSON(http.StatusMultiStatus, map[string]interface{}{
 			"error_code": 0,
@@ -122,7 +121,7 @@ func (uc *UserController) GetUserByIDHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User retrieved successfully", user))
 }
 
-// DeleteUserHandler - Giữ nguyên
+// DeleteUserHandler
 func (uc *UserController) DeleteUserHandler(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
