@@ -13,7 +13,7 @@ import (
 func RegisterUserRoutes(e *echo.Echo, db *gorm.DB, redisClient *redis.Client, kafkaProducer *kafka.Producer) {
 	userRepo := repository.NewUserRepository(db, redisClient)
 	userService := service.NewUserService(userRepo)
-	userController := NewUserController(userService, redisClient)
+	userController := NewUserController(userService, redisClient, kafkaProducer)
 
 	usergroup := e.Group("/users")
 	usergroup.POST("", userController.CreateUserHandler)

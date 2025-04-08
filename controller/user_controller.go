@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 
@@ -23,10 +24,11 @@ type UserController struct {
 }
 
 // NewUserController khởi tạo controller với UserService và RedisClient
-func NewUserController(userService *service.UserService, redisClient *redis.Client) *UserController {
+func NewUserController(userService *service.UserService, redisClient *redis.Client, kafkaProducer *kafka.Producer) *UserController {
 	return &UserController{
-		UserService: userService,
-		RedisClient: redisClient,
+		UserService:   userService,
+		RedisClient:   redisClient,
+		KafkaProducer: kafkaProducer,
 	}
 }
 
@@ -45,8 +47,9 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 	}
 
 	var createdUsers []models.Users
-
 	var failedUsers []map[string]string
+
+	requestID := uuid.New().String()
 
 	for _, req := range reqs {
 		user, err := uc.UserService.CreateUser(req)
@@ -59,8 +62,9 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 			})
 			continue
 		}
-
 		uc.pushToLog(user.ID, "CREATE")
+		uc.LogUserActionToKafka("POST", "/users", req.Email, requestID)
+
 		createdUsers = append(createdUsers, *user)
 	}
 
@@ -161,4 +165,23 @@ func (uc *UserController) GetListUsersHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to get users", err.Error()))
 	}
 	return c.JSON(http.StatusOK, response.SuccessResponseWithMeta(0, "Users retrieved successfully", users, meta))
+}
+
+func (uc *UserController) LogUserActionToKafka(userID, action, email, requestID string) {
+	if uc.KafkaProducer == nil {
+		log.Println("Kafka producer not initialized")
+		return
+	}
+
+	msg := kafka.LogMessage{
+		UserID:    userID,
+		Action:    action,
+		Email:     email,
+		RequestID: requestID,
+	}
+
+	err := uc.KafkaProducer.Send(msg)
+	if err != nil {
+		log.Println("Failed to send log:", err)
+	}
 }

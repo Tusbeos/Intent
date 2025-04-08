@@ -13,6 +13,12 @@ type Producer struct {
 	writer *kafka.Writer
 	topic  string
 }
+type LogMessage struct {
+	UserID    string `json:"user_id"`
+	Action    string `json:"action"`
+	Email     string `json:"email"`
+	RequestID string `json:"request_id"`
+}
 
 func NewProducer(broker, topic string) *Producer {
 	writer := &kafka.Writer{
