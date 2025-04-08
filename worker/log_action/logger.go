@@ -7,7 +7,6 @@ import (
 	"intent/repository"
 )
 
-// SaveLog lưu action log vào database
 func SaveLog(userRepo *repository.UserRepository, logAction models.LogAction) {
 	err := userRepo.SaveLogAction(logAction)
 	if err != nil {

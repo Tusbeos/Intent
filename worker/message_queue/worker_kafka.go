@@ -32,11 +32,10 @@ func (w *KafkaWorker) Start() {
 	for {
 		msg, err := r.ReadMessage(context.Background())
 		if err != nil {
-			log.Println("[Kafka] Error reading message:", err)
+			log.Println("Error reading message:", err)
 			continue
 		}
 
-		// Gửi message tới Processor để xử lý
 		go w.processor.ProcessMessage(msg.Value)
 	}
 }

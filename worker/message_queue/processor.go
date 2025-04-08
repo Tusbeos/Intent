@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -17,6 +18,13 @@ type Processor struct {
 	userRepo *repository.UserRepository
 	retries  int
 }
+type MessageWrapper struct {
+	Method    string                      `json:"method"`
+	Path      string                      `json:"path"`
+	Request   []request.UserCreateRequest `json:"request"`
+	RequestID string                      `json:"request_id"`
+	Response  string                      `json:"response"`
+}
 
 func NewProcessor(userRepo *repository.UserRepository, retries int) *Processor {
 	return &Processor{
@@ -26,17 +34,19 @@ func NewProcessor(userRepo *repository.UserRepository, retries int) *Processor {
 }
 
 func (p *Processor) ProcessMessage(msg []byte) {
-	var data request.UserCreateRequest
-	if err := json.Unmarshal(msg, &data); err != nil {
-		log.Println("[Processor] Failed to unmarshal message:", err)
+	var wrapper MessageWrapper
+	if err := json.Unmarshal(msg, &wrapper); err != nil {
+		log.Printf("Unmarshal failed. Raw message: %s, Error: %v", string(msg), err)
 		return
 	}
 
-	// Validate dữ liệu request
-	if err := request.ValidateRequest(data); err != nil {
-		log.Printf("[Processor] Validation failed: %v", err)
+	if len(wrapper.Request) == 0 {
+		log.Println("Empty request array in message, skipping.")
 		return
 	}
+
+	data := wrapper.Request[0]
+
 	user := models.Users{
 		Name:     data.Name,
 		Password: data.Password,
@@ -46,23 +56,26 @@ func (p *Processor) ProcessMessage(msg []byte) {
 		Status:   data.Status,
 	}
 
-	// Thử lưu user vào database
 	for attempt := 1; attempt <= p.retries; attempt++ {
 		err := p.userRepo.Create(&user)
 		if err == nil {
-			log.Println("[Processor] Successfully processed message")
+			log.Println("Successfully processed message")
 			return
 		}
 
-		// Nếu lỗi Duplicate Entry, bỏ qua retry
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			log.Println("[Processor] Skipping duplicate entry")
+			log.Println("Duplicate entry, skipping:", data.Email, data.Phone)
 			return
 		}
 
-		log.Printf("[Processor] Attempt %d/%d failed, error: %v", attempt, p.retries, err)
+		if strings.Contains(err.Error(), "Data truncated") {
+			log.Printf("Invalid data (truncated), skipping. Error: %v, Message: %s", err, string(msg))
+			return
+		}
+
+		log.Printf("Attempt %d/%d failed for message: %s\nError: %v", attempt, p.retries, string(msg), err)
 		time.Sleep(2 * time.Second)
 	}
 
-	log.Println("[Processor] Failed to process message after retries")
+	log.Printf("Failed to process message after retries. Raw message: %s", string(msg))
 }

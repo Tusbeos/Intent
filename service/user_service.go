@@ -97,7 +97,6 @@ func (s *UserService) DeleteUser(id int) error {
 		return err
 	}
 
-	// Xóa user
 	err = s.UserRepo.Delete(user.ID)
 	if err != nil {
 		return err

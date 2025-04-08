@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// pushToQueue đẩy message vào Redis queue
+// pushToQueue đẩy message vào Redis queue (ghi log)
 func (uc *UserController) pushToLog(userID int, action string) {
 	msg, err := json.Marshal(map[string]interface{}{
 		"user_id":   userID,
@@ -21,5 +21,8 @@ func (uc *UserController) pushToLog(userID int, action string) {
 
 	if err := uc.RedisClient.RPush(context.Background(), "user_action_queue", msg).Err(); err != nil {
 		log.Println("Failed to push message to Redis:", err)
+		return
 	}
+
+	log.Printf("Sent log action to Redis for user_id: %d with action: %s", userID, action)
 }

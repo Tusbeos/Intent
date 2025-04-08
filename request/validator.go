@@ -10,7 +10,6 @@ import (
 
 var validate = validator.New()
 
-// Custom message lỗi
 var customMessages = map[string]string{
 	"required": "không được để trống",
 	"min":      "phải có ít nhất %s ký tự",
@@ -18,7 +17,6 @@ var customMessages = map[string]string{
 	"lte":      "phải nhỏ hơn hoặc bằng %s",
 }
 
-// Hàm validate request
 func ValidateRequest(r interface{}) error {
 	err := validate.Struct(r)
 	if err == nil {
@@ -31,7 +29,6 @@ func ValidateRequest(r interface{}) error {
 		tag := err.Tag()
 		param := err.Param()
 
-		// Tạo message tùy chỉnh
 		if msg, exists := customMessages[tag]; exists {
 			if param != "" {
 				errorMessages = append(errorMessages, fmt.Sprintf("Trường '%s' %s", fieldName, fmt.Sprintf(msg, param)))

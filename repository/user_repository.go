@@ -23,7 +23,7 @@ func NewUserRepository(db *gorm.DB, redisClient *redis.Client) *UserRepository {
 	return &UserRepository{db: db, redisClient: redisClient}
 }
 
-// AddUser
+// CreateUser
 func (r *UserRepository) Create(user *models.Users) error {
 	return r.db.Create(user).Error
 }
@@ -53,9 +53,8 @@ func (r *UserRepository) GetList(req request.GetListUsersRequest) ([]models.User
 		json.Unmarshal([]byte(val), &cachedData)
 		return cachedData.Users, cachedData.Total, nil
 	}
-
-	// Nếu không có cache, truy vấn database
 	var users []models.Users
+
 	var total int64
 	query := r.db.Model(&models.Users{})
 
@@ -74,7 +73,6 @@ func (r *UserRepository) GetList(req request.GetListUsersRequest) ([]models.User
 		return nil, 0, err
 	}
 
-	// Lưu vào cache (1 phút)
 	cachedData, _ := json.Marshal(struct {
 		Users []models.Users
 		Total int64
@@ -90,7 +88,6 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("user:%s", id)
 
-	// Kiểm tra cache trong Redis
 	val, err := r.redisClient.Get(ctx, cacheKey).Result()
 	if err == nil {
 		var user models.Users
@@ -98,7 +95,6 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 		return &user, nil
 	}
 
-	// Nếu không có cache, truy vấn DB
 	var user models.Users
 	if err := r.db.First(&user, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -115,14 +111,13 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 func (r *UserRepository) CreateBatch(users []models.Users) error {
 	return r.db.Create(&users).Error
 }
-
 func (r *UserRepository) FindByEmailOrPhone(email, phone string) (*models.Users, error) {
 	var user models.Users
 	if err := r.db.Where("email = ? OR phone = ?", email, phone).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // Không tìm thấy user, có thể tạo mới
+			return nil, nil
 		}
 		return nil, err
 	}
-	return &user, nil // Tìm thấy user, trả về lỗi trùng lặp
+	return &user, nil
 }

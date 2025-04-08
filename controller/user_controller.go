@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 
+	"intent/kafka"
 	"intent/models"
 	"intent/request"
 	"intent/response"
@@ -16,8 +17,9 @@ import (
 
 // UserController định nghĩa các handler cho user
 type UserController struct {
-	UserService *service.UserService
-	RedisClient *redis.Client
+	UserService   *service.UserService
+	RedisClient   *redis.Client
+	KafkaProducer *kafka.Producer
 }
 
 // NewUserController khởi tạo controller với UserService và RedisClient
@@ -43,13 +45,13 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 	}
 
 	var createdUsers []models.Users
+
 	var failedUsers []map[string]string
 
 	for _, req := range reqs {
 		user, err := uc.UserService.CreateUser(req)
 		if err != nil {
 			log.Println("Failed to create user:", err)
-			// Lưu lại thông tin user bị lỗi
 			failedUsers = append(failedUsers, map[string]string{
 				"email": req.Email,
 				"phone": req.Phone,
@@ -62,7 +64,6 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 		createdUsers = append(createdUsers, *user)
 	}
 
-	// Nếu tất cả user bị lỗi -> 400 Bad Request
 	if len(createdUsers) == 0 {
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "All users failed to create", failedUsers))
 	}
@@ -81,29 +82,49 @@ func (uc *UserController) CreateUserHandler(c echo.Context) error {
 
 // UpdateUserHandler
 func (uc *UserController) UpdateUserHandler(c echo.Context) error {
-	var reqs []request.UserUpdateRequest
-	if err := c.Bind(&reqs); err != nil {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid ID parameter", err.Error()))
+	}
+
+	var req request.UserUpdateRequest
+
+	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request format", err.Error()))
 	}
 
-	// Validate request
-	for _, req := range reqs {
-		if err := request.ValidateRequest(req); err != nil {
-			return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Validation failed", err.Error()))
-		}
+	req.ID = id
+
+	if err := request.ValidateRequest(req); err != nil {
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Validation failed", err.Error()))
 	}
 
-	err := uc.UserService.UpdateUser(reqs)
+	err = uc.UserService.UpdateUser([]request.UserUpdateRequest{req})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to update users", err.Error()))
+		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to update user", err.Error()))
 	}
 
-	// Gửi event cập nhật
-	for _, req := range reqs {
-		uc.pushToLog(req.ID, "UPDATE")
+	uc.pushToLog(req.ID, "UPDATE")
+
+	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User updated successfully", nil))
+}
+
+// DeleteUserHandler
+func (uc *UserController) DeleteUserHandler(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid user ID", nil))
 	}
 
-	return c.JSON(http.StatusOK, response.SuccessResponse(0, "Users updated successfully", nil))
+	err = uc.UserService.DeleteUser(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, response.ErrorResponse(404, "User not found", nil))
+	}
+
+	uc.pushToLog(id, "DELETE")
+
+	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User deleted successfully", nil))
 }
 
 // GetUserByIDHandler
@@ -119,24 +140,6 @@ func (uc *UserController) GetUserByIDHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User retrieved successfully", user))
-}
-
-// DeleteUserHandler
-func (uc *UserController) DeleteUserHandler(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid user ID", nil))
-	}
-
-	err = uc.UserService.DeleteUser(id)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, response.ErrorResponse(404, "User not found", nil))
-	}
-
-	// Bắn message vào Redis queue
-	uc.pushToLog(id, "DELETE")
-
-	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User deleted successfully", nil))
 }
 
 // GetListUsersHandler

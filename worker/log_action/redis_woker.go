@@ -30,7 +30,7 @@ func (w *RedisWorker) Start() {
 		msg, err := w.RedisClient.RPop(ctx, "user_action_queue").Result()
 		if err != nil {
 			if err == redis.Nil {
-				time.Sleep(2 * time.Second) // Đợi nếu queue rỗng
+				time.Sleep(2 * time.Second)
 				continue
 			}
 			log.Println("Redis queue error:", err)

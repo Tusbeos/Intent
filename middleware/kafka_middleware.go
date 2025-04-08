@@ -20,61 +20,46 @@ type CustomResponseRecorder struct {
 	Body *bytes.Buffer
 }
 
-func NewResponseRecorder(w http.ResponseWriter) *CustomResponseRecorder {
-	return &CustomResponseRecorder{
-		ResponseWriter: w,
-		Body:           new(bytes.Buffer),
-	}
-}
-
-func (r *CustomResponseRecorder) Write(b []byte) (int, error) {
-	r.Body.Write(b)
-	return r.ResponseWriter.Write(b)
-}
-
-func (r *CustomResponseRecorder) Header() http.Header {
-	return r.ResponseWriter.Header()
-}
-
-// KafkaMiddleware gửi request vào Worker Kafka với request_id
 func KafkaMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Tạo request_id (UUID)
 		requestID := uuid.New().String()
 		c.Set("request_id", requestID)
 
-		// Đọc body request và khôi phục lại
-		bodyBytes, err := io.ReadAll(c.Request().Body)
-		if err != nil {
-			log.Println("[KafkaMiddleware] Failed to read request body:", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read request body")
-		}
-		c.Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
 		var jsonData interface{}
-		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
-			log.Println("[KafkaMiddleware] Invalid JSON request:", err)
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]interface{}{
-				"error_code": 400,
-				"message":    "Invalid JSON format",
-				"data":       err.Error(),
-			})
+		method := c.Request().Method
+
+		var bodyBytes []byte
+		var err error
+
+		// Chỉ đọc body nếu là POST, PUT, PATCH
+		if method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch {
+			bodyBytes, err = io.ReadAll(c.Request().Body)
+			if err != nil {
+				log.Println("Failed to read request body:", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read request body")
+			}
+			c.Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+			if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
+				log.Println("Invalid JSON request:", err)
+				return echo.NewHTTPError(http.StatusBadRequest, map[string]interface{}{
+					"error_code": 400,
+					"message":    "Invalid JSON format",
+					"data":       err.Error(),
+				})
+			}
 		}
 
-		// Ghi nhận response
+		// Ghi response
 		rec := &CustomResponseRecorder{
 			ResponseWriter: c.Response().Writer,
 			Body:           new(bytes.Buffer),
 		}
 		c.Response().Writer = rec
 
-		// Gọi API
 		err = next(c)
 
-		// Đọc response body
 		responseData := rec.Body.String()
-
-		// Gửi vào Kafka
 		cfg := config.LoadConfig()
 		kafkaBroker, topic := config.GetKafkaConfig(cfg)
 		writer := kafka.NewWriter(kafka.WriterConfig{
@@ -84,27 +69,23 @@ func KafkaMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		})
 		defer writer.Close()
 
-		// Gói dữ liệu gửi đi
 		message := map[string]interface{}{
 			"request_id": requestID,
 			"request":    jsonData,
 			"response":   responseData,
 			"path":       c.Request().URL.Path,
-			"method":     c.Request().Method,
+			"method":     method,
 		}
 		msg, err := json.Marshal(message)
 		if err != nil {
-			log.Println("[KafkaMiddleware] Failed to marshal message:", err)
+			log.Println("Failed to marshal message:", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to process request")
 		}
 
-		err = writer.WriteMessages(context.Background(), kafka.Message{
-			Value: msg,
-		})
-		if err != nil {
-			log.Println("[Kafka] Failed to send message:", err)
+		if err := writer.WriteMessages(context.Background(), kafka.Message{Value: msg}); err != nil {
+			log.Println("Failed to send message:", err)
 		} else {
-			log.Printf("[Kafka] Sent message with request_id: %s", requestID)
+			log.Printf("Sent message with request_id: %s", requestID)
 		}
 
 		return err

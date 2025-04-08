@@ -5,12 +5,12 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
+	"intent/kafka"
 	"intent/repository"
 	"intent/service"
 )
 
-// RegisterUserRoutes đăng ký các route
-func RegisterUserRoutes(e *echo.Echo, db *gorm.DB, redisClient *redis.Client) {
+func RegisterUserRoutes(e *echo.Echo, db *gorm.DB, redisClient *redis.Client, kafkaProducer *kafka.Producer) {
 	userRepo := repository.NewUserRepository(db, redisClient)
 	userService := service.NewUserService(userRepo)
 	userController := NewUserController(userService, redisClient)

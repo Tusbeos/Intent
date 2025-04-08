@@ -14,12 +14,10 @@ import (
 	"intent/models"
 )
 
-// Các  Biến
 var RedisClient *redis.Client
 var DB *gorm.DB
 
-// Kết nối MySQL
-func ConnectDB(cfg *models.Config) (*gorm.DB, error) {
+func ConnectDB(cfg *models.Config, caller string) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
 		cfg.Database.User,
 		cfg.Database.Password,
@@ -30,11 +28,10 @@ func ConnectDB(cfg *models.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("Successfully connected to MySQL!")
+	log.Printf("%s Successfully connected to MySQL!", caller)
 	return db, nil
 }
 
-// Load config từ file JSON
 func LoadConfig() *models.Config {
 	file, err := os.Open("config.json")
 	if err != nil {
@@ -51,8 +48,7 @@ func LoadConfig() *models.Config {
 	return config
 }
 
-// Hàm kết nối Redis
-func ConnectRedis(cfg *models.Config) *redis.Client {
+func ConnectRedis(cfg *models.Config, caller string) *redis.Client {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
 	client := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
@@ -60,20 +56,17 @@ func ConnectRedis(cfg *models.Config) *redis.Client {
 		DB:       cfg.Redis.DB,
 	})
 
-	// Kiểm tra kết nối Redis
 	ctx := context.Background()
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
-		log.Fatalf("Redis connection error: %v", err)
+		log.Fatalf("%s Redis connection error: %v", caller, err)
 		return nil
 	}
 
-	log.Println("Successfully connected to Redis!")
-	RedisClient = client
+	log.Printf("[%s] Successfully connected to Redis!", caller)
 	return client
 }
 
-// Hàm lấy cấu hình Kafka
 func GetKafkaConfig(cfg *models.Config) (string, string) {
 	return cfg.Kafka.Brokers[0], cfg.Kafka.Topic
 }
