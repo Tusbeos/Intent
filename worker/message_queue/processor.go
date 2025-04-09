@@ -13,11 +13,11 @@ type Processor struct {
 	retries  int
 }
 type MessageWrapper struct {
-	Method    string                      `json:"method"`
-	Path      string                      `json:"path"`
-	Request   []request.UserCreateRequest `json:"request"`
-	RequestID string                      `json:"request_id"`
-	Response  string                      `json:"response"`
+	Method    string                    `json:"method"`
+	Path      string                    `json:"path"`
+	Request   request.UserCreateRequest `json:"request"`
+	RequestID string                    `json:"request_id"`
+	Response  string                    `json:"response"`
 }
 
 func NewProcessor(userRepo *repository.UserRepository, retries int) *Processor {
@@ -34,13 +34,10 @@ func (p *Processor) ProcessMessage(msg []byte) {
 		return
 	}
 
-	if len(wrapper.Request) == 0 {
-		log.Println("Empty request array in message, skipping.")
+	if wrapper.Method == "" || wrapper.RequestID == "" || wrapper.Request.Email == "" {
+		log.Printf("Skipping message: incomplete data. Message: %+v", wrapper)
 		return
 	}
 
-	data := wrapper.Request[0]
-
-	// Chỉ log lại message
-	log.Printf("[Kafka Log] Received action: %s for  user: %s (request_id: %s)", wrapper.Method, data.Email, wrapper.RequestID)
+	// log.Printf("Received action: %s for user: %s (request_id: %s)", wrapper.Method, wrapper.Request.Email, wrapper.RequestID)
 }

@@ -30,7 +30,7 @@ func (r *UserRepository) Create(user *models.Users) error {
 
 // UpdateUser
 func (r *UserRepository) Update(id int, req request.UserUpdateRequest) error {
-	return r.db.Model(&models.Users{}).Where("id = ?", id).Updates(req).Error
+	return r.db.Debug().Model(&models.Users{}).Where("id = ?", id).Updates(req).Error
 }
 
 // DeleteUser
@@ -111,6 +111,8 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 func (r *UserRepository) CreateBatch(users []models.Users) error {
 	return r.db.Create(&users).Error
 }
+
+// FindByEmailOrPhone
 func (r *UserRepository) FindByEmailOrPhone(email, phone string) (*models.Users, error) {
 	var user models.Users
 	if err := r.db.Where("email = ? OR phone = ?", email, phone).First(&user).Error; err != nil {

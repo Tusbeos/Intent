@@ -26,7 +26,6 @@ func (w *RedisWorker) Start() {
 	log.Println("Log Action Worker is running...")
 
 	for {
-		// Lấy message từ Redis queue
 		msg, err := w.RedisClient.RPop(ctx, "user_action_queue").Result()
 		if err != nil {
 			if err == redis.Nil {
@@ -36,8 +35,6 @@ func (w *RedisWorker) Start() {
 			log.Println("Redis queue error:", err)
 			continue
 		}
-
-		// Xử lý message
 		w.processMessage(msg)
 	}
 }

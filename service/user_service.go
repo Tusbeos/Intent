@@ -50,18 +50,23 @@ func (s *UserService) CreateUser(req request.UserCreateRequest) (*models.Users, 
 // UpdateUsers
 func (s *UserService) UpdateUser(reqs []request.UserUpdateRequest) error {
 	for _, req := range reqs {
-		_, err := s.UserRepo.GetByID(strconv.Itoa(req.ID))
+		user, err := s.UserRepo.GetByID(strconv.Itoa(req.ID))
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("User not found: ID " + strconv.Itoa(req.ID))
+				// Log giống GORM (đậm + đỏ)
+				fmt.Printf("\033[1;31m/home/tu/Code/Gi/repository/user_repository.go:116 record not found\033[0m\n")
+				return fmt.Errorf("User not found: ID %d", req.ID)
 			}
 			return err
 		}
 
-		err = s.UserRepo.Update(req.ID, req)
-		if err != nil {
+		if err := s.UserRepo.Update(req.ID, req); err != nil {
+			fmt.Println("Failed to update user:", err)
 			return err
 		}
+
+		// Log khi update thành công
+		fmt.Printf("Successfully updated user with ID: %d (%s)\n", user.ID, user.Email)
 	}
 	return nil
 }
