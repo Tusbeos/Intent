@@ -43,7 +43,6 @@ func (r *UserRepository) GetList(req request.GetListUsersRequest) ([]models.User
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("users:status=%s:gender=%s:page=%d:limit=%d", req.Status, req.Gender, req.Page, req.Limit)
 
-	// Kiểm tra cache
 	val, err := r.redisClient.Get(ctx, cacheKey).Result()
 	if err == nil {
 		var cachedData struct {
@@ -100,16 +99,10 @@ func (r *UserRepository) GetByID(id string) (*models.Users, error) {
 		return nil, err
 	}
 
-	// Lưu vào cache (1 phút)
 	userJSON, _ := json.Marshal(user)
 	r.redisClient.Set(ctx, cacheKey, userJSON, 1*time.Minute)
 
 	return &user, nil
-}
-
-// CreateBatch tạo nhiều user cùng lúc
-func (r *UserRepository) CreateBatch(users []models.Users) error {
-	return r.db.Create(&users).Error
 }
 
 // FindByEmailOrPhone

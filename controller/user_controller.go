@@ -93,8 +93,6 @@ func (uc *UserController) UpdateUserHandler(c echo.Context) error {
 		Gender:   req.Gender,
 		Status:   req.Status,
 	}
-
-	// Lấy request_id từ context đã set trong middleware
 	requestID := c.Get("request_id").(string)
 
 	uc.LogUserActionToKafka("PUT", fmt.Sprintf("/users/%d", req.ID), requestID, userData)
