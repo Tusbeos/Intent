@@ -21,8 +21,8 @@ func StartServer() {
 	redisClient := config.ConnectRedis(cfg, "Server")
 
 	e := echo.New()
-	e.Use(middleware.KafkaMiddleware)
-	e.Use(middleware.RateLimitMiddleware(redisClient, 10, 30*time.Second))
+	e.Use(middleware.RequestIDMiddleware())
+	e.Use(middleware.RateLimitMiddleware(redisClient, 50, 30*time.Second))
 	kafkaProducer := kafka.NewProducer(cfg.Kafka.Brokers[0], cfg.Kafka.Topic)
 	controller.RegisterUserRoutes(e, db, redisClient, kafkaProducer)
 

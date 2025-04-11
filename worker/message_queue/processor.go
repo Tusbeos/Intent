@@ -39,5 +39,5 @@ func (p *Processor) ProcessMessage(msg []byte) {
 		return
 	}
 
-	log.Printf("Received action: %s for user: %s (request_id: %s)", wrapper.Method, wrapper.Request.Email, wrapper.RequestID)
+	// log.Printf("Received action: %s for user: %s (request_id: %s)", wrapper.Method, wrapper.Request.Email, wrapper.RequestID)
 }

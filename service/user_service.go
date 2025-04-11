@@ -39,11 +39,9 @@ func (s *UserService) CreateUser(req request.UserCreateRequest) (*models.Users, 
 	}
 
 	if err := s.UserRepo.Create(&user); err != nil {
-		fmt.Println("Failed to create user:", err)
 		return nil, err
 	}
 
-	fmt.Println("Successfully created user with ID:", user.ID)
 	return &user, nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 
@@ -35,20 +36,26 @@ func NewUserController(userService *service.UserService, redisClient *redis.Clie
 func (uc *UserController) CreateUserHandler(c echo.Context) error {
 	var req request.UserCreateRequest
 	if err := c.Bind(&req); err != nil {
+		log.Println("Failed to bind request:", err)
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Invalid request format", err.Error()))
 	}
 
+	requestID := uuid.New().String() // ← Tạo 1 lần duy nhất ở đây
+
 	if err := request.ValidateRequest(req); err != nil {
+		requestID := uuid.New().String()
+		log.Println()
+		log.Printf("Validation failed for email: %s | request_id: %s | error: %v\n", req.Email, requestID, err)
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse(400, "Validation failed", err.Error()))
 	}
 
-	requestID := c.Get("request_id").(string)
-
 	user, err := uc.UserService.CreateUser(req)
 	if err != nil {
-		log.Println("Failed to create user:", err)
+		log.Printf("Failed to create user | request_id: %s | error: %v\n", requestID, err)
 		return c.JSON(http.StatusInternalServerError, response.ErrorResponse(500, "Failed to create user", err.Error()))
 	}
+
+	log.Printf("Successfully created user with ID: %v | request_id: %s", user.ID, requestID)
 
 	uc.pushToLog(user.ID, "CREATE")
 	uc.LogUserActionToKafka("POST", "/users", requestID, req)
@@ -82,7 +89,6 @@ func (uc *UserController) UpdateUserHandler(c echo.Context) error {
 	}
 
 	log.Printf("Successfully updated user with ID: %d\n", req.ID)
-
 	uc.pushToLog(req.ID, "UPDATE")
 
 	userData := request.UserCreateRequest{
@@ -93,8 +99,8 @@ func (uc *UserController) UpdateUserHandler(c echo.Context) error {
 		Gender:   req.Gender,
 		Status:   req.Status,
 	}
-	requestID := c.Get("request_id").(string)
 
+	requestID := uuid.New().String()
 	uc.LogUserActionToKafka("PUT", fmt.Sprintf("/users/%d", req.ID), requestID, userData)
 
 	return c.JSON(http.StatusOK, response.SuccessResponse(0, "User updated successfully", nil))
